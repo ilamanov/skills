@@ -7,16 +7,12 @@ description: Reimplement the current branch on a new branch with a clean, narrat
 
 Create a new branch with a clean, narrative-quality commit history from an existing branch's changes.
 
-## Gather Context
+## Context
 
-Run these commands to understand the current state:
-
-```bash
-git branch --show-current          # Source branch
-git status --short                 # Uncommitted changes
-git log main..HEAD --oneline       # Commits since main
-git diff main...HEAD --stat        # Full diff summary
-```
+- Source branch: !`git branch --show-current`
+- Git status: !`git status --short`
+- Commits since main: !`git log main..HEAD --oneline`
+- Full diff against main: !`git diff main...HEAD --stat`
 
 ## Workflow
 
@@ -45,6 +41,7 @@ Break the implementation into self-contained logical steps. Each step should ref
 ### 5. Reimplement the work
 
 Recreate changes in the clean branch, committing step by step. Each commit must:
+
 - Introduce a single coherent idea
 - Include a clear commit message and description
 
@@ -64,4 +61,3 @@ Use the `/pr` skill to create a pull request. Include a link to the original bra
 - Never add yourself as author or contributor
 - Never include "Generated with Claude Code" or "Co-Authored-By" lines
 - End state of clean branch must be identical to source branch
-
