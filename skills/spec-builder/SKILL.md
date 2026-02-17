@@ -39,6 +39,7 @@ AskUserQuestion:
 Conduct the interview using AskUserQuestion with **batched questions** (2-4 related questions per batch).
 
 **Rules:**
+
 - Never assume - if something is ambiguous, ask
 - Provide sensible default options for every question
 - Add "(Recommended)" to the best default option
@@ -47,18 +48,19 @@ Conduct the interview using AskUserQuestion with **batched questions** (2-4 rela
 
 **Question calibration by user background:**
 
-| Topic | Technical User | Non-Technical User |
-|-------|---------------|-------------------|
-| Architecture | "REST vs GraphQL vs tRPC?" | Skip - decide yourself |
-| Data storage | "SQL vs NoSQL? Which DB?" | "Does it need to remember data between sessions?" |
-| UI framework | "React, Vue, or Svelte?" | Skip - decide yourself |
-| Hosting | "Serverless, containers, or VMs?" | Skip - decide yourself |
-| Auth | "OAuth, magic links, or password?" | "How should users log in?" (plain language options) |
-| Scale | "Expected concurrent users?" | "How many people might use this at once?" |
+| Topic        | Technical User                     | Non-Technical User                                  |
+| ------------ | ---------------------------------- | --------------------------------------------------- |
+| Architecture | "REST vs GraphQL vs tRPC?"         | Skip - decide yourself                              |
+| Data storage | "SQL vs NoSQL? Which DB?"          | "Does it need to remember data between sessions?"   |
+| UI framework | "React, Vue, or Svelte?"           | Skip - decide yourself                              |
+| Hosting      | "Serverless, containers, or VMs?"  | Skip - decide yourself                              |
+| Auth         | "OAuth, magic links, or password?" | "How should users log in?" (plain language options) |
+| Scale        | "Expected concurrent users?"       | "How many people might use this at once?"           |
 
 **Interview domains to cover** (adapt based on product type):
 
 For **software products**:
+
 - Core functionality (what does it do?)
 - User types and permissions
 - Key user flows (step by step)
@@ -70,6 +72,7 @@ For **software products**:
 - Platform (web, mobile, desktop, CLI)
 
 For **physical products**:
+
 - Core functionality
 - Materials and form factor
 - User interaction (how do you use it?)
@@ -78,6 +81,7 @@ For **physical products**:
 - Packaging and delivery
 
 For **all products**:
+
 - Success criteria (how do we know it works?)
 - Constraints (budget, timeline, must-haves)
 - Anti-goals (what it explicitly should NOT do)
@@ -140,6 +144,7 @@ Then use AskUserQuestion to get feedback:
 ### Phase 4: Deep Dive
 
 Based on feedback, ask detailed follow-up questions on:
+
 - Unclear areas from the outline
 - Edge cases and error states
 - Specific UI/UX details
@@ -153,6 +158,7 @@ Continue until confident all ambiguity is resolved.
 Write the final spec to `spec-<product-name>.md` in the current directory.
 
 **Spec format principles:**
+
 - Detailed enough for an AI coding agent to implement
 - Skimmable for human review (use headers, bullets, tables)
 - No vague language - every requirement must be concrete
@@ -165,57 +171,69 @@ Write the final spec to `spec-<product-name>.md` in the current directory.
 # [Product Name] Spec
 
 ## Overview
+
 [2-3 sentences: what it is, who it's for, core value prop]
 
 ## Goals & Non-Goals
 
 ### Goals
+
 - [Concrete goal 1]
 - [Concrete goal 2]
 
 ### Non-Goals (explicitly out of scope)
+
 - [What this product will NOT do]
 
 ## User Types
+
 [Table or list of user types and their permissions/capabilities]
 
 ## Core Features
 
 ### Feature 1: [Name]
+
 **Purpose:** [Why this feature exists]
 **Behavior:**
+
 - [Specific behavior 1]
 - [Specific behavior 2]
-**UI:** [Description or wireframe reference]
+  **UI:** [Description or wireframe reference]
 
 [Repeat for each feature]
 
 ## User Flows
 
 ### Flow 1: [Name]
+
 1. User does X
 2. System responds with Y
 3. User sees Z
-...
+   ...
 
 [Repeat for key flows]
 
 ## Data Model
+
 [Tables, entities, relationships - for software]
 [Components, materials - for physical products]
 
 ## Technical Decisions
+
 [Architecture choices, technologies, integrations]
 [Skip for non-technical users or physical products]
 
 ## Edge Cases & Error Handling
+
 - When X happens, the system should Y
 - If Z fails, show error message: "..."
 
 ## Open Questions
+
 [Anything that still needs resolution before building]
 
 ## Future Considerations
+
 [Ideas mentioned but explicitly deferred]
 ```
 
@@ -228,3 +246,6 @@ Write the final spec to `spec-<product-name>.md` in the current directory.
 5. **Surface unknowns** - Ask about things the user probably hasn't considered yet.
 6. **Stay concrete** - The final spec should have zero vague requirements.
 
+## Self-Note
+
+Before finalizing the spec, ask yourself: "What are the edge cases you didn't consider?"
