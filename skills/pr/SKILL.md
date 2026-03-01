@@ -15,6 +15,23 @@ allowed-tools: Bash(git:*), Bash(gh:*)
 - Existing PR: !`gh pr view --json number,title,url 2>/dev/null || echo "No PR exists"`
 - Recent commits: !`git log main..HEAD --oneline 2>/dev/null || git log -3 --oneline`
 
+## Step 0: Handle merged PR branches
+
+If **not** on `main` and a PR already exists for the current branch, check if it has been merged:
+
+```bash
+gh pr view --json state --jq '.state'
+```
+
+If the state is `MERGED`:
+
+1. Stash any uncommitted changes: `git stash --include-untracked` (skip if working tree is clean)
+2. Switch to main: `git checkout main`
+3. Pull latest: `git pull`
+4. Create a new branch with a descriptive name based on the user's notes or the staged changes
+5. Pop the stash if one was created: `git stash pop`
+6. Continue to Step 1 on the new branch
+
 ## Step 1: Prepare the branch
 
 1. If on main, create a new branch with a descriptive name
@@ -28,10 +45,12 @@ allowed-tools: Bash(git:*), Bash(gh:*)
 **If a PR already exists:**
 
 1. Read the existing PR:
+
    ```bash
    gh pr view --json title,body,labels,number
    gh pr diff --stat
    ```
+
    Read specific files directly rather than dumping the full diff.
 
 2. Review whether the PR content accurately reflects the current diff:
@@ -41,6 +60,7 @@ allowed-tools: Bash(git:*), Bash(gh:*)
    - Are the release notes complete?
 
 3. Update if needed:
+
    ```bash
    gh pr edit <number> --title "new title" --body "new body"
    ```
@@ -153,4 +173,3 @@ Include when changes affect `api-report.md`:
 - Never include AI attribution ("Generated with Claude Code", "Co-Authored-By: Claude", etc.) in commits, PR titles, or descriptions
 - Never use title case for descriptions—use sentence case
 - Never put yourself as co-author of any commits
-
