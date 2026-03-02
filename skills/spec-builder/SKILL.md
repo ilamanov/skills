@@ -30,6 +30,7 @@ AskUserQuestion:
 2. "What's the goal for this spec?"
    - MVP/prototype to test the idea
    - Full product spec for development
+   - Implementation plan for an AI coding agent
    - Pitch document for stakeholders
    - Personal reference to clarify my thinking
 ```
@@ -57,6 +58,30 @@ Conduct the interview using AskUserQuestion with **batched questions** (2-4 rela
 | Auth         | "OAuth, magic links, or password?" | "How should users log in?" (plain language options) |
 | Scale        | "Expected concurrent users?"       | "How many people might use this at once?"           |
 
+**Prioritize load-bearing decisions:**
+
+Not all decisions carry equal weight. Some are cheap to revisit later; others are foundational — they shape the core architecture, UX, or physical design and are expensive or painful to redo. The interview **must** identify which decisions are load-bearing for _this specific product_, surface them, and get explicit user approval before moving on. This applies to all product types.
+
+The test: "If we change this after launch/production, does it require significant rework, data migration, retooling, or redesign?" If yes, it's load-bearing and must be discussed upfront. If not, it can be iterated on later and doesn't need deep interview time.
+
+What counts as load-bearing varies by product. A few examples to calibrate your judgment:
+
+- **Storage & data architecture** (software) — where content lives, when uploads happen, what's the source of truth
+- **Async processing patterns** (software) — how long-running operations are tracked, who polls, how progress is communicated
+- **Concurrency model** (software) — whether the system is designed for parallel workloads from the start, since retrofitting this is a rewrite
+- **Core mechanism & form factor** (hardware) — how the thing fundamentally works, its dimensions, power source
+- **Manufacturing process & materials** (hardware) — injection molding vs CNC vs 3D print changes cost, tolerances, and lead times
+- **Regulatory & certification requirements** (hardware) — designing for compliance after the fact means costly redesigns
+- **UI/UX model** (any) — sometimes trivial to change (colors, copy), sometimes load-bearing (e.g., a real-time collaborative interface vs. async workflow, or a feed-based layout that the entire data model is built around)
+- **Third-party dependencies** (any) — switching providers often means rewriting integrations and handling different data formats
+- **Auth & identity model** (software/services) — migrating users between auth systems is extremely disruptive
+
+These are examples, not a checklist. For each product, think from first principles about what's "poured in concrete" vs. "rearranging furniture," and focus the interview accordingly.
+
+For technical users, ask about load-bearing decisions directly. For non-technical users, simplify the concept but still get their approval — e.g., instead of "Should the frontend poll via request IDs or use server-sent events?", ask "When a generation takes 30 seconds, should the user see a live progress update or just get notified when it's done?"
+
+**Spend interview time proportionally to how hard a decision is to reverse.** Don't deep-dive on aspects that are trivially changeable for this product unless the user raises them.
+
 **Interview domains to cover** (adapt based on product type):
 
 For **software products**:
@@ -64,9 +89,8 @@ For **software products**:
 - Core functionality (what does it do?)
 - User types and permissions
 - Key user flows (step by step)
-- Data model (what entities exist?)
-- UI/UX preferences (style, layout, interactions)
-- Integrations (external services, APIs)
+- Data model (what entities exist, how they relate)
+- Integrations (external services, APIs, fallback strategies)
 - Edge cases and error handling
 - Security and privacy requirements
 - Platform (web, mobile, desktop, CLI)
@@ -74,11 +98,14 @@ For **software products**:
 For **physical products**:
 
 - Core functionality
-- Materials and form factor
 - User interaction (how do you use it?)
 - Manufacturing considerations
 - Safety requirements
 - Packaging and delivery
+
+For **all products**:
+
+- Load-bearing decisions identified for this specific product (see above)
 
 For **all products**:
 
@@ -221,7 +248,8 @@ Write the final spec to `spec-<product-name>.md` in the current directory.
 ## Technical Decisions
 
 [Architecture choices, technologies, integrations]
-[Skip for non-technical users or physical products]
+[Explicitly document every load-bearing decision (storage, async patterns, concurrency, etc.) and note that it was discussed and approved during the interview]
+[For non-technical users, describe these in plain language; for physical products, skip]
 
 ## Edge Cases & Error Handling
 
@@ -239,13 +267,17 @@ Write the final spec to `spec-<product-name>.md` in the current directory.
 
 ## Key Principles
 
-1. **Be thorough** - Ask many questions. 10-20 batches is normal for a complex product.
-2. **Never assume** - If two interpretations are possible, ask which one.
-3. **Provide defaults** - Every question should have reasonable options with a recommended choice.
-4. **Adapt depth** - Technical users get technical questions; non-technical users get plain language.
-5. **Surface unknowns** - Ask about things the user probably hasn't considered yet.
-6. **Stay concrete** - The final spec should have zero vague requirements.
+1. **Load-bearing decisions first** - Identify and resolve architectural decisions that are hard to undo before spending time on details that are easy to change later. The interview's primary job is to surface these and get explicit approval.
+2. **Be thorough** - Ask many questions. 10-20 batches is normal for a complex product.
+3. **Never assume** - If two interpretations are possible, ask which one.
+4. **Provide defaults** - Every question should have reasonable options with a recommended choice.
+5. **Adapt depth** - Technical users get technical questions; non-technical users get plain language. But even non-technical users must approve load-bearing decisions — just explain them simply.
+6. **Surface unknowns** - Ask about things the user probably hasn't considered yet.
+7. **Stay concrete** - The final spec should have zero vague requirements.
 
 ## Self-Note
 
-Before finalizing the spec, ask yourself: "What are the edge cases you didn't consider?"
+Before finalizing the spec, ask yourself:
+
+- "What are the load-bearing decisions I haven't surfaced yet? Is there anything in this spec that would be painful to change once built — and that I haven't explicitly confirmed with the user?"
+- "What are the edge cases I didn't consider?"
