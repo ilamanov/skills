@@ -5,11 +5,11 @@ description: Break a product or feature spec into a sequence of small, independe
 
 # Incremental Plan
 
-Break a spec into a sequence of small steps that can each be built and tested in isolation.
+Break a spec into 2-4 big steps that each deliver a working, end-to-end slice of the product.
 
 ## Why
 
-A big spec implemented end-to-end in one pass is hard to debug, hard to test, and hard to course-correct. Splitting it into incremental steps means each piece gets built, verified, and locked in before moving on. Problems surface early. The engineer stays in control.
+A big spec implemented in one pass is hard to debug and course-correct. But splitting it into too many tiny steps (DB schema, page shell, config inputs, etc.) creates busywork — each step is too small to be meaningful on its own and the plan becomes a rigid checklist instead of a useful guide. The sweet spot is 2-4 substantial steps where each one produces something a user can actually try.
 
 ## Workflow
 
@@ -33,33 +33,30 @@ Keep this light — 1-2 questions max. This is not an interview.
 
 ### 3. Decompose into Steps
 
-Split the spec into the smallest steps that are each independently **demonstrable** — the engineer can run it, see it work, and confirm it's correct before moving on.
+Split the spec into **2-4 big steps**. Each step should deliver a complete, working vertical slice — schema, server logic, UI, and wiring all included. The user should be able to use the result of each step, not just inspect plumbing.
 
 **Splitting principles:**
 
-- **Core mechanism first.** Start with the fundamental thing that makes the product work, stripped of everything else. For a terminal streaming product, that's getting PTY output into a browser. For a chat app, that's sending and displaying a message. Everything else layers on top.
+- **Target 2-4 total steps.** This is the hard constraint. If you have more than 4 steps, merge related ones. A step can (and should) be substantial — it's fine for a single step to touch DB schema, server actions, UI components, and wiring if they all serve one cohesive goal.
 
-- **One technical concern per step.** Each step should touch one layer or one integration. "Build the WebSocket server" and "Build the terminal UI component" are separate steps, not one step. This keeps each step easy to reason about and test.
+- **Each step = a usable vertical slice.** Step 1 should be "the basic thing works end-to-end" — schema, page, UI, server logic, the whole path from user action to visible result. Not "set up the schema" followed by "build the shell" followed by "add inputs" followed by "wire it up". All of that is one step: "basic end-to-end flow works."
 
-- **Defer auth, polish, and edge cases.** Security, error handling, and UX polish are important but should come after the core works. Hardcode credentials, skip validation, use ugly UI — whatever makes the step testable faster. Layer these on in later steps.
+- **Never make a step that only sets up plumbing.** DB schema alone is not a step. A page shell alone is not a step. Config inputs that don't do anything are not a step. These are implementation details within a step, not steps themselves.
 
-- **Each step must be testable by a human.** Every step ends with something the engineer can manually verify. "Refactor internal module" is not a step — it has no observable behavior to test. "Data flows from A to B and I can see it" is a step.
+- **After the core works, expand in big chunks.** Step 2+ should each add a substantial set of related capabilities. Group features by user workflow, not by technical layer. For example, "multi-model generation + batch controls + result card actions" is one step, not three.
 
-- **Prefer vertical slices over horizontal layers.** When possible, a step should cut through multiple layers to produce a visible result (e.g., "API endpoint + minimal UI to call it") rather than building an entire layer with nothing to show (e.g., "build all API endpoints"). But keep the slice narrow.
+- **Defer auth, polish, and edge cases** to later steps — but still merge them into bigger chunks rather than giving each its own step.
 
-- **Integration steps are explicit.** When earlier steps were built in isolation with stubs or hardcoded values, add a step to connect them together. Don't assume integration is trivial — it's where bugs hide.
+- **Each step must be testable by a human.** Every step ends with something the engineer can manually use and verify end-to-end.
 
-**Typical ordering pattern (adapt to the specific spec):**
+**Typical shape (adapt to the specific spec):**
 
-1. Core mechanism — minimal proof that the fundamental thing works
-2. Data layer — persistence, schema, basic CRUD
-3. Core features — one step per feature or feature group, building on the data layer
-4. Integration — connecting isolated pieces, replacing stubs with real implementations
-5. Auth & permissions — layered on after core features work
-6. Edge cases & error handling — robustness pass
-7. Polish — UI refinement, performance, final UX details
+1. **Core end-to-end** — the basic thing works: schema + UI + server logic + wiring, minimal but functional
+2. **Power features** — multi-select, batch operations, advanced controls, card actions — everything that makes it actually useful
+3. **Persistence + history** — if applicable, load from DB on refresh, filters, presets
+4. **Secondary mode or polish** — e.g. video support if the core was images, or a second major workflow
 
-This is a starting point, not a rigid formula. Some specs won't follow this order. Use judgment.
+Most specs will need 2-3 steps. Only use 4 if there's a genuinely separate mode or workflow.
 
 ### 4. Write the Plan
 
@@ -118,12 +115,19 @@ Write the plan to `plan-<spec-name>.md` in the same directory as the spec.
 [full step detail]
 
 ...
+
+---
+
+> Step boundaries may shift during implementation — the point is a clear path, not a rigid checklist. If a feature fits better in an adjacent step, move it.
+>
+> After completing each step, write a short handoff doc noting what was built, any manual steps required (e.g. run migrations, set env vars), manual tests to verify, and what the next step expects. This makes it easy to resume in a new session.
 ```
 
 ## Key Principles
 
-1. **Testable over comprehensive.** A step that builds 30% of the spec but can be fully verified is better than a step that builds 60% but can't be tested until more work is done.
-2. **Err on the side of smaller steps.** When unsure whether to split, split. Two 30-minute steps are easier to manage than one 3-hour step that might go wrong halfway through.
-3. **Stay at the right altitude.** The plan describes _what_ to build per step, not _how_ to implement it line by line. Leave implementation details to the engineer or coding agent. But be specific enough about scope and boundaries that there's no ambiguity about what's in vs. out.
-4. **No orphan steps.** Every step must produce something verifiable. If a step exists only to "set up" the next step with no way to test it alone, merge it into the next step.
-5. **The plan is a guide, not a contract.** Note in the document that step boundaries may shift during implementation — the point is to provide a clear path, not a rigid checklist.
+1. **2-4 steps, no more.** This is the most important rule. If you find yourself writing step 5, stop and merge.
+2. **Vertical slices, not horizontal layers.** Every step cuts through the full stack. No step should be "just schema" or "just UI" — each one delivers a working feature the user can try.
+3. **Err on the side of bigger steps.** When unsure whether to split, don't. A meaty step that delivers a lot is better than several thin steps that each do a little.
+4. **Stay at the right altitude.** The plan describes _what_ to build per step, not _how_ to implement it line by line. Leave implementation details to the engineer or coding agent. But be specific enough about scope and boundaries that there's no ambiguity about what's in vs. out.
+5. **No orphan steps.** Every step must produce something usable. If a step exists only to "set up" the next step with no way to use it alone, merge it into the next step.
+6. **The plan is a guide, not a contract.** Note in the document that step boundaries may shift during implementation — the point is to provide a clear path, not a rigid checklist.
