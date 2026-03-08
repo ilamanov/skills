@@ -1,0 +1,1628 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Cartograph</title>
+<style>
+  :root {
+    --bg: #0a0a0a;
+    --surface: #141414;
+    --surface-2: #1e1e1e;
+    --border: #2a2a2a;
+    --border-hover: #3a3a3a;
+    --text: #e5e5e5;
+    --text-muted: #888;
+    --text-dim: #555;
+    --accent: #3b82f6;
+    --accent-dim: #1e3a5f;
+    --green: #22c55e;
+    --green-dim: #14532d;
+    --orange: #f59e0b;
+    --orange-dim: #78350f;
+    --purple: #a855f7;
+    --purple-dim: #581c87;
+    --red: #ef4444;
+    --red-dim: #7f1d1d;
+    --cyan: #06b6d4;
+    --cyan-dim: #164e63;
+    --pink: #ec4899;
+    --pink-dim: #831843;
+    --yellow: #eab308;
+    --yellow-dim: #713f12;
+    --radius: 8px;
+    --font: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    --mono: "SF Mono", "Fira Code", "Fira Mono", Menlo, monospace;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    font-family: var(--font);
+    background: var(--bg);
+    color: var(--text);
+    height: 100vh;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+  }
+
+  /* -- Header -- */
+  .header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 12px 20px;
+    border-bottom: 1px solid var(--border);
+    background: var(--surface);
+    flex-shrink: 0;
+  }
+  .header-left { display: flex; align-items: center; gap: 16px; }
+  .logo {
+    font-size: 15px;
+    font-weight: 700;
+    letter-spacing: -0.5px;
+    color: var(--text);
+  }
+  .logo span { color: var(--text-muted); font-weight: 400; }
+  .stats {
+    display: flex;
+    gap: 16px;
+    font-size: 12px;
+    color: var(--text-muted);
+  }
+  .stat-val { color: var(--text); font-weight: 600; margin-right: 3px; }
+
+  /* -- Tabs -- */
+  .tabs {
+    display: flex;
+    gap: 0;
+    border-bottom: 1px solid var(--border);
+    background: var(--surface);
+    flex-shrink: 0;
+    padding: 0 20px;
+  }
+  .tab {
+    padding: 10px 20px;
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--text-muted);
+    cursor: pointer;
+    border-bottom: 2px solid transparent;
+    transition: all 0.15s;
+    user-select: none;
+  }
+  .tab:hover { color: var(--text); }
+  .tab.active { color: var(--accent); border-bottom-color: var(--accent); }
+
+  /* -- Layout -- */
+  .main {
+    display: flex;
+    flex: 1;
+    overflow: hidden;
+  }
+  .sidebar {
+    width: 280px;
+    border-right: 1px solid var(--border);
+    background: var(--surface);
+    display: flex;
+    flex-direction: column;
+    flex-shrink: 0;
+    overflow: hidden;
+  }
+  .sidebar-search {
+    padding: 12px;
+    border-bottom: 1px solid var(--border);
+  }
+  .sidebar-search input {
+    width: 100%;
+    padding: 8px 12px;
+    background: var(--surface-2);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    color: var(--text);
+    font-size: 13px;
+    outline: none;
+  }
+  .sidebar-search input:focus { border-color: var(--accent); }
+  .sidebar-search input::placeholder { color: var(--text-dim); }
+  .sidebar-list {
+    flex: 1;
+    overflow-y: auto;
+    padding: 8px;
+  }
+  .sidebar-item {
+    padding: 8px 12px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 13px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    transition: background 0.1s;
+  }
+  .sidebar-item:hover { background: var(--surface-2); }
+  .sidebar-item.active { background: var(--accent-dim); color: var(--accent); }
+  .sidebar-badge {
+    font-size: 10px;
+    padding: 2px 6px;
+    border-radius: 10px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    flex-shrink: 0;
+  }
+  .sidebar-label {
+    flex: 1;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  /* -- Content -- */
+  .content {
+    flex: 1;
+    overflow: hidden;
+    position: relative;
+  }
+  .panel { display: none; height: 100%; }
+  .panel.active { display: flex; }
+
+  /* -- Entity Map -- */
+  #entity-map-panel {
+    flex-direction: column;
+  }
+  #entity-map-canvas {
+    flex: 1;
+    overflow: hidden;
+    cursor: grab;
+    position: relative;
+  }
+  #entity-map-canvas:active { cursor: grabbing; }
+  #entity-map-canvas svg { width: 100%; height: 100%; }
+
+  /* -- Detail Panel -- */
+  .detail-panel {
+    width: 340px;
+    border-left: 1px solid var(--border);
+    background: var(--surface);
+    overflow-y: auto;
+    padding: 20px;
+    display: none;
+    flex-shrink: 0;
+  }
+  .detail-panel.open { display: block; }
+  .detail-header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    margin-bottom: 16px;
+  }
+  .detail-title { font-size: 16px; font-weight: 700; }
+  .detail-close {
+    cursor: pointer;
+    color: var(--text-muted);
+    font-size: 18px;
+    line-height: 1;
+    padding: 4px;
+  }
+  .detail-close:hover { color: var(--text); }
+  .detail-section { margin-bottom: 20px; }
+  .detail-section-title {
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.8px;
+    color: var(--text-muted);
+    margin-bottom: 8px;
+  }
+  .detail-desc {
+    font-size: 13px;
+    line-height: 1.5;
+    color: var(--text-muted);
+  }
+  .detail-tag {
+    display: inline-block;
+    font-size: 11px;
+    padding: 3px 8px;
+    border-radius: 4px;
+    font-weight: 500;
+    margin-right: 4px;
+    margin-bottom: 4px;
+  }
+  .field-row {
+    display: flex;
+    align-items: baseline;
+    gap: 8px;
+    padding: 4px 0;
+    font-size: 13px;
+    border-bottom: 1px solid var(--border);
+  }
+  .field-name { font-family: var(--mono); font-size: 12px; color: var(--accent); min-width: 80px; }
+  .field-type { font-family: var(--mono); font-size: 11px; color: var(--text-dim); min-width: 60px; }
+  .field-desc { color: var(--text-muted); font-size: 12px; }
+  .detail-link {
+    display: block;
+    padding: 6px 10px;
+    font-size: 13px;
+    color: var(--accent);
+    cursor: pointer;
+    border-radius: 4px;
+    transition: background 0.1s;
+  }
+  .detail-link:hover { background: var(--accent-dim); }
+  .impl-path {
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--text-dim);
+    margin-top: 2px;
+  }
+
+  /* -- Surface View -- */
+  .surface-content {
+    flex: 1;
+    overflow-y: auto;
+    padding: 32px;
+  }
+  .surface-header { margin-bottom: 24px; }
+  .surface-title { font-size: 18px; font-weight: 700; margin-bottom: 4px; }
+  .surface-meta {
+    font-size: 13px;
+    color: var(--text-muted);
+    margin-bottom: 8px;
+    display: flex;
+    gap: 16px;
+    align-items: center;
+  }
+  .surface-route {
+    font-family: var(--mono);
+    font-size: 12px;
+    color: var(--cyan);
+    background: var(--cyan-dim);
+    padding: 2px 8px;
+    border-radius: 4px;
+  }
+  .surface-section { margin-bottom: 28px; }
+  .surface-section-title {
+    font-size: 12px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.8px;
+    color: var(--text-muted);
+    margin-bottom: 12px;
+    padding-bottom: 8px;
+    border-bottom: 1px solid var(--border);
+  }
+  .surface-entity-list { display: flex; flex-direction: column; gap: 6px; }
+  .surface-entity-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 12px;
+    background: var(--surface-2);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    cursor: pointer;
+    transition: border-color 0.15s;
+  }
+  .surface-entity-item:hover { border-color: var(--border-hover); }
+  .surface-entity-name { font-size: 13px; font-weight: 500; }
+  .surface-entity-exposure {
+    margin-left: auto;
+    font-size: 11px;
+    color: var(--text-dim);
+    display: flex;
+    align-items: center;
+    gap: 4px;
+  }
+  .exposure-dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    display: inline-block;
+  }
+  .exposure-scoped { background: var(--green); }
+  .exposure-shared { background: var(--orange); }
+  .exposure-cross-cutting { background: var(--red); }
+
+  /* -- Exposure Matrix -- */
+  .matrix-container {
+    overflow-x: auto;
+    margin-top: 8px;
+  }
+  .matrix-table {
+    border-collapse: collapse;
+    font-size: 12px;
+    width: 100%;
+  }
+  .matrix-table th {
+    padding: 6px 10px;
+    text-align: left;
+    font-weight: 600;
+    color: var(--text-muted);
+    border-bottom: 1px solid var(--border);
+    position: sticky;
+    top: 0;
+    background: var(--surface);
+    white-space: nowrap;
+  }
+  .matrix-table th.rotated {
+    writing-mode: vertical-rl;
+    text-orientation: mixed;
+    transform: rotate(180deg);
+    padding: 10px 4px;
+    text-align: right;
+    max-width: 32px;
+  }
+  .matrix-table td {
+    padding: 6px 10px;
+    border-bottom: 1px solid var(--border);
+    white-space: nowrap;
+  }
+  .matrix-table td.entity-cell {
+    font-weight: 500;
+    cursor: pointer;
+    color: var(--accent);
+  }
+  .matrix-table td.entity-cell:hover { text-decoration: underline; }
+  .matrix-dot {
+    width: 18px;
+    height: 18px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0 auto;
+  }
+  .matrix-dot.active {
+    color: var(--green);
+    font-weight: 700;
+  }
+  .matrix-dot.inactive {
+    color: var(--border);
+  }
+  .matrix-exposure-label {
+    font-size: 10px;
+    padding: 2px 6px;
+    border-radius: 8px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
+  }
+  .exposure-label-scoped { background: var(--green-dim); color: var(--green); }
+  .exposure-label-shared { background: var(--orange-dim); color: var(--orange); }
+  .exposure-label-cross-cutting { background: var(--red-dim); color: var(--red); }
+
+  /* -- Flow View -- */
+  .flow-content {
+    flex: 1;
+    overflow-y: auto;
+    padding: 32px;
+  }
+  .flow-title { font-size: 18px; font-weight: 700; margin-bottom: 4px; }
+  .flow-meta {
+    font-size: 13px;
+    color: var(--text-muted);
+    margin-bottom: 24px;
+    display: flex;
+    gap: 16px;
+  }
+  .flow-steps { position: relative; padding-left: 28px; }
+  .flow-steps::before {
+    content: '';
+    position: absolute;
+    left: 11px;
+    top: 12px;
+    bottom: 12px;
+    width: 2px;
+    background: var(--border);
+  }
+  .flow-step {
+    position: relative;
+    margin-bottom: 16px;
+    padding: 12px 16px;
+    background: var(--surface-2);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    cursor: default;
+    transition: border-color 0.15s;
+  }
+  .flow-step:hover { border-color: var(--border-hover); }
+  .flow-step::before {
+    content: '';
+    position: absolute;
+    left: -21px;
+    top: 16px;
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    background: var(--accent);
+    border: 2px solid var(--bg);
+  }
+  .flow-step-num {
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--text-dim);
+    margin-bottom: 4px;
+  }
+  .flow-step-desc { font-size: 13px; margin-bottom: 6px; }
+  .flow-step-tags {
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
+  }
+
+  /* -- Operations View -- */
+  .ops-content {
+    flex: 1;
+    overflow-y: auto;
+    padding: 32px;
+  }
+  .ops-group { margin-bottom: 32px; }
+  .ops-group-title {
+    font-size: 14px;
+    font-weight: 700;
+    margin-bottom: 12px;
+    padding-bottom: 8px;
+    border-bottom: 1px solid var(--border);
+  }
+  .op-card {
+    padding: 12px 16px;
+    background: var(--surface-2);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    margin-bottom: 8px;
+    transition: border-color 0.15s;
+  }
+  .op-card:hover { border-color: var(--border-hover); }
+  .op-card-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 4px;
+  }
+  .op-card-name { font-size: 13px; font-weight: 600; }
+  .op-card-desc { font-size: 12px; color: var(--text-muted); margin-bottom: 6px; }
+  .op-card-effects {
+    font-size: 11px;
+    color: var(--orange);
+    font-style: italic;
+  }
+
+  /* -- Confidence & Kind badges -- */
+  .badge-high { background: var(--green-dim); color: var(--green); }
+  .badge-medium { background: var(--orange-dim); color: var(--orange); }
+  .badge-low { background: var(--red-dim); color: var(--red); }
+  .badge-db-model { background: var(--accent-dim); color: var(--accent); }
+  .badge-dto { background: var(--green-dim); color: var(--green); }
+  .badge-state { background: var(--orange-dim); color: var(--orange); }
+  .badge-derived { background: var(--purple-dim); color: var(--purple); }
+  .badge-config { background: var(--cyan-dim); color: var(--cyan); }
+  .badge-enum { background: var(--pink-dim); color: var(--pink); }
+  .badge-create { background: var(--green-dim); color: var(--green); }
+  .badge-read { background: var(--accent-dim); color: var(--accent); }
+  .badge-update { background: var(--orange-dim); color: var(--orange); }
+  .badge-delete { background: var(--red-dim); color: var(--red); }
+  .badge-domain { background: var(--purple-dim); color: var(--purple); }
+  .badge-user { background: var(--accent-dim); color: var(--accent); }
+  .badge-admin { background: var(--orange-dim); color: var(--orange); }
+  .badge-system { background: var(--cyan-dim); color: var(--cyan); }
+  .badge-surface { background: var(--yellow-dim); color: var(--yellow); }
+  .badge-tool { background: var(--purple-dim); color: var(--purple); }
+  .badge-interaction { background: var(--accent-dim); color: var(--accent); }
+  .badge-transaction { background: var(--yellow-dim); color: var(--yellow); }
+  .badge-gate { background: var(--red-dim); color: var(--red); }
+  .badge-infrastructure { background: var(--cyan-dim); color: var(--cyan); }
+  .badge-workflow { background: var(--orange-dim); color: var(--orange); }
+
+  /* -- Feature View -- */
+  .feature-content {
+    flex: 1;
+    overflow-y: auto;
+    padding: 32px;
+  }
+  .feature-header { margin-bottom: 24px; }
+  .feature-title { font-size: 18px; font-weight: 700; margin-bottom: 4px; }
+  .feature-meta {
+    font-size: 13px;
+    color: var(--text-muted);
+    margin-bottom: 8px;
+    display: flex;
+    gap: 8px;
+    align-items: center;
+  }
+  .feature-section { margin-bottom: 28px; }
+  .feature-section-title {
+    font-size: 12px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.8px;
+    color: var(--text-muted);
+    margin-bottom: 12px;
+    padding-bottom: 8px;
+    border-bottom: 1px solid var(--border);
+  }
+  .feature-impl-item {
+    padding: 8px 12px;
+    background: var(--surface-2);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    margin-bottom: 6px;
+  }
+  .feature-impl-desc { font-size: 13px; margin-bottom: 2px; }
+  .feature-impl-path { font-family: var(--mono); font-size: 11px; color: var(--text-dim); }
+  .feature-surface-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 12px;
+    background: var(--surface-2);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    margin-right: 6px;
+    margin-bottom: 6px;
+    cursor: pointer;
+    font-size: 13px;
+    transition: border-color 0.15s;
+  }
+  .feature-surface-chip:hover { border-color: var(--border-hover); }
+
+  /* -- Graph Nodes -- */
+  .node-group { cursor: pointer; }
+  .node-rect {
+    rx: 8;
+    ry: 8;
+    stroke-width: 1.5;
+    transition: stroke 0.15s;
+  }
+  .node-group:hover .node-rect { stroke-width: 2; }
+  .node-label {
+    font-family: var(--font);
+    font-size: 13px;
+    font-weight: 600;
+    fill: var(--text);
+    text-anchor: middle;
+    dominant-baseline: central;
+    pointer-events: none;
+  }
+  .node-kind {
+    font-family: var(--font);
+    font-size: 10px;
+    fill: var(--text-muted);
+    text-anchor: middle;
+    dominant-baseline: central;
+    pointer-events: none;
+  }
+  .edge-line {
+    stroke: var(--border-hover);
+    stroke-width: 1;
+    fill: none;
+  }
+  .edge-label {
+    font-family: var(--font);
+    font-size: 10px;
+    fill: var(--text-dim);
+    text-anchor: middle;
+    dominant-baseline: central;
+  }
+  .node-selected .node-rect { stroke-width: 2.5; }
+
+  /* -- Empty State -- */
+  .empty-state {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: 100%;
+    color: var(--text-dim);
+    font-size: 14px;
+  }
+
+  /* -- Drop Zone -- */
+  .drop-zone-overlay {
+    position: fixed;
+    inset: 0;
+    background: var(--bg);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 100;
+  }
+  .drop-zone {
+    width: 480px;
+    padding: 48px 40px;
+    border: 2px dashed var(--border-hover);
+    border-radius: 16px;
+    text-align: center;
+    transition: border-color 0.2s, background 0.2s;
+    cursor: pointer;
+  }
+  .drop-zone.dragover {
+    border-color: var(--accent);
+    background: var(--accent-dim);
+  }
+  .drop-zone-icon {
+    font-size: 40px;
+    margin-bottom: 16px;
+    opacity: 0.4;
+  }
+  .drop-zone-title {
+    font-size: 17px;
+    font-weight: 600;
+    color: var(--text);
+    margin-bottom: 8px;
+  }
+  .drop-zone-sub {
+    font-size: 13px;
+    color: var(--text-muted);
+    margin-bottom: 20px;
+    line-height: 1.5;
+  }
+  .drop-zone-btn {
+    display: inline-block;
+    padding: 10px 24px;
+    background: var(--accent);
+    color: #fff;
+    border: none;
+    border-radius: var(--radius);
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: opacity 0.15s;
+  }
+  .drop-zone-btn:hover { opacity: 0.85; }
+  .drop-zone-error {
+    margin-top: 16px;
+    font-size: 12px;
+    color: var(--red);
+    display: none;
+  }
+
+  /* -- Scrollbar -- */
+  ::-webkit-scrollbar { width: 6px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+  ::-webkit-scrollbar-thumb:hover { background: var(--border-hover); }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div class="header-left">
+    <div class="logo">Cartograph <span>v0</span></div>
+  </div>
+  <div class="stats" id="stats"></div>
+</div>
+
+<div class="tabs">
+  <div class="tab active" data-tab="surfaces">Surfaces</div>
+  <div class="tab" data-tab="features">Features</div>
+  <div class="tab" data-tab="entities">Entity Map</div>
+  <div class="tab" data-tab="flows">Flows</div>
+  <div class="tab" data-tab="operations">Operations</div>
+</div>
+
+<div class="main">
+  <div class="sidebar">
+    <div class="sidebar-search">
+      <input type="text" id="search" placeholder="Search...">
+    </div>
+    <div class="sidebar-list" id="sidebar-list"></div>
+  </div>
+
+  <div class="content" id="content">
+    <!-- Surfaces -->
+    <div class="panel active" id="surfaces-panel" style="flex-direction:row;">
+      <div class="surface-content" id="surface-content">
+        <div class="empty-state">Select a surface from the sidebar</div>
+      </div>
+    </div>
+
+    <!-- Features -->
+    <div class="panel" id="features-panel" style="flex-direction:row;">
+      <div class="feature-content" id="feature-content">
+        <div class="empty-state">Select a feature from the sidebar</div>
+      </div>
+    </div>
+
+    <!-- Entity Map -->
+    <div class="panel" id="entities-panel" style="flex-direction:row;">
+      <div id="entity-map-panel" style="flex:1; display:flex; flex-direction:column;">
+        <div id="entity-map-canvas"></div>
+      </div>
+      <div class="detail-panel" id="entity-detail"></div>
+    </div>
+
+    <!-- Flows -->
+    <div class="panel" id="flows-panel" style="flex-direction:row;">
+      <div class="flow-content" id="flow-content">
+        <div class="empty-state">Select a flow from the sidebar</div>
+      </div>
+    </div>
+
+    <!-- Operations -->
+    <div class="panel" id="operations-panel" style="flex-direction:row;">
+      <div class="ops-content" id="ops-content"></div>
+    </div>
+  </div>
+</div>
+
+<!-- Drop Zone (shown until data is loaded) -->
+<div class="drop-zone-overlay" id="drop-zone-overlay">
+  <div class="drop-zone" id="drop-zone">
+    <div class="drop-zone-icon">&#x1f5fa;</div>
+    <div class="drop-zone-title">Load Cartograph Data</div>
+    <div class="drop-zone-sub">
+      Drop a <strong>cartograph.json</strong> file here, or click to browse.<br>
+      Run <code>/cartograph</code> in Claude Code to generate one.
+    </div>
+    <button class="drop-zone-btn" id="browse-btn">Choose File</button>
+    <div class="drop-zone-error" id="drop-zone-error"></div>
+    <input type="file" id="file-input" accept=".json" style="display:none;">
+  </div>
+</div>
+
+<script>
+// -- State --
+let DATA = null;
+let currentTab = 'surfaces';
+let selectedEntityId = null;
+let selectedFlowId = null;
+let selectedSurfaceId = null;
+let selectedFeatureId = null;
+let searchQuery = '';
+
+// -- Computed: entity -> surface mapping --
+let entitySurfaceMap = {}; // entityId -> [surfaceId, ...]
+
+function computeEntitySurfaceMap() {
+  entitySurfaceMap = {};
+  if (!DATA.surfaces) return;
+  DATA.entities.forEach(e => { entitySurfaceMap[e.id] = []; });
+  DATA.surfaces.forEach(s => {
+    (s.entityIds || []).forEach(eid => {
+      if (!entitySurfaceMap[eid]) entitySurfaceMap[eid] = [];
+      entitySurfaceMap[eid].push(s.id);
+    });
+  });
+}
+
+function getExposureLevel(entityId) {
+  const count = (entitySurfaceMap[entityId] || []).length;
+  if (count <= 1) return 'scoped';
+  if (count === 2) return 'shared';
+  return 'cross-cutting';
+}
+
+function getExposureLabel(entityId) {
+  const level = getExposureLevel(entityId);
+  const count = (entitySurfaceMap[entityId] || []).length;
+  const labels = { scoped: 'scoped', shared: 'shared', 'cross-cutting': 'cross-cutting' };
+  return `${count} surface${count !== 1 ? 's' : ''} (${labels[level]})`;
+}
+
+// -- Color map for entity kinds --
+const KIND_COLORS = {
+  'db-model': { fill: '#1e3a5f', stroke: '#3b82f6' },
+  'dto':      { fill: '#14532d', stroke: '#22c55e' },
+  'state':    { fill: '#78350f', stroke: '#f59e0b' },
+  'derived':  { fill: '#581c87', stroke: '#a855f7' },
+  'config':   { fill: '#164e63', stroke: '#06b6d4' },
+  'enum':     { fill: '#831843', stroke: '#ec4899' },
+};
+const DEFAULT_COLOR = { fill: '#2a2a2a', stroke: '#888' };
+
+// -- Init --
+function init() {
+  computeEntitySurfaceMap();
+  renderStats();
+  setupTabs();
+  setupSearch();
+  switchTab('surfaces');
+}
+
+function renderStats() {
+  const el = document.getElementById('stats');
+  const surfaceCount = (DATA.surfaces || []).length;
+  const featureCount = (DATA.features || []).length;
+  el.innerHTML = `
+    <span><span class="stat-val">${surfaceCount}</span>surfaces</span>
+    <span><span class="stat-val">${featureCount}</span>features</span>
+    <span><span class="stat-val">${DATA.entities.length}</span>entities</span>
+    <span><span class="stat-val">${DATA.relationships.length}</span>relationships</span>
+    <span><span class="stat-val">${DATA.operations.length}</span>operations</span>
+    <span><span class="stat-val">${DATA.flows.length}</span>flows</span>
+  `;
+  document.title = `Cartograph — ${DATA.meta.name}`;
+}
+
+// -- Tabs --
+function setupTabs() {
+  document.querySelectorAll('.tab').forEach(tab => {
+    tab.addEventListener('click', () => switchTab(tab.dataset.tab));
+  });
+}
+
+function switchTab(tab) {
+  currentTab = tab;
+  document.querySelectorAll('.tab').forEach(t => t.classList.toggle('active', t.dataset.tab === tab));
+  document.querySelectorAll('.panel').forEach(p => { p.classList.remove('active'); p.style.display = 'none'; });
+  const panel = document.getElementById(`${tab}-panel`);
+  panel.classList.add('active');
+  panel.style.display = 'flex';
+  renderSidebar();
+  if (tab === 'entities') renderEntityMap();
+  if (tab === 'operations') renderOperations();
+  if (tab === 'surfaces' && !selectedSurfaceId && (DATA.surfaces || []).length > 0) {
+    selectSurface(DATA.surfaces[0].id);
+  }
+}
+
+// -- Search --
+function setupSearch() {
+  document.getElementById('search').addEventListener('input', e => {
+    searchQuery = e.target.value.toLowerCase();
+    renderSidebar();
+  });
+}
+
+// -- Sidebar --
+function renderSidebar() {
+  const list = document.getElementById('sidebar-list');
+  list.innerHTML = '';
+
+  if (currentTab === 'surfaces') {
+    const surfaces = (DATA.surfaces || []).filter(s =>
+      !searchQuery || s.name.toLowerCase().includes(searchQuery) || s.description.toLowerCase().includes(searchQuery)
+    );
+    surfaces.forEach(surface => {
+      const div = document.createElement('div');
+      div.className = `sidebar-item${selectedSurfaceId === surface.id ? ' active' : ''}`;
+      div.innerHTML = `
+        <span class="sidebar-badge badge-${surface.actor}">${surface.actor}</span>
+        <span class="sidebar-label">${surface.name}</span>
+      `;
+      div.addEventListener('click', () => selectSurface(surface.id));
+      list.appendChild(div);
+    });
+
+    // Add "Exposure Matrix" as a special sidebar item
+    if ((DATA.surfaces || []).length > 0) {
+      const sep = document.createElement('div');
+      sep.style.cssText = 'height:1px; background:var(--border); margin:8px 4px;';
+      list.appendChild(sep);
+
+      const matrixItem = document.createElement('div');
+      matrixItem.className = `sidebar-item${selectedSurfaceId === '__matrix__' ? ' active' : ''}`;
+      matrixItem.innerHTML = `
+        <span class="sidebar-badge badge-surface">all</span>
+        <span class="sidebar-label">Exposure Matrix</span>
+      `;
+      matrixItem.addEventListener('click', () => selectSurface('__matrix__'));
+      list.appendChild(matrixItem);
+    }
+  } else if (currentTab === 'features') {
+    const features = (DATA.features || []).filter(f =>
+      !searchQuery || f.name.toLowerCase().includes(searchQuery) || f.description.toLowerCase().includes(searchQuery)
+    );
+    features.forEach(feature => {
+      const div = document.createElement('div');
+      div.className = `sidebar-item${selectedFeatureId === feature.id ? ' active' : ''}`;
+      div.innerHTML = `
+        <span class="sidebar-badge badge-${feature.kind}">${feature.kind}</span>
+        <span class="sidebar-label">${feature.name}</span>
+      `;
+      div.addEventListener('click', () => selectFeature(feature.id));
+      list.appendChild(div);
+    });
+  } else if (currentTab === 'entities') {
+    const items = DATA.entities.filter(e => !searchQuery || e.name.toLowerCase().includes(searchQuery) || e.description.toLowerCase().includes(searchQuery));
+    items.forEach(entity => {
+      const div = document.createElement('div');
+      div.className = `sidebar-item${selectedEntityId === entity.id ? ' active' : ''}`;
+      div.innerHTML = `
+        <span class="sidebar-badge badge-${entity.kind}">${entity.kind}</span>
+        <span class="sidebar-label">${entity.name}</span>
+      `;
+      div.addEventListener('click', () => selectEntity(entity.id));
+      list.appendChild(div);
+    });
+  } else if (currentTab === 'flows') {
+    const items = DATA.flows.filter(f => !searchQuery || f.name.toLowerCase().includes(searchQuery) || f.description.toLowerCase().includes(searchQuery));
+    items.forEach(flow => {
+      const div = document.createElement('div');
+      div.className = `sidebar-item${selectedFlowId === flow.id ? ' active' : ''}`;
+      div.innerHTML = `
+        <span class="sidebar-badge badge-${flow.actor}">${flow.actor}</span>
+        <span class="sidebar-label">${flow.name}</span>
+      `;
+      div.addEventListener('click', () => selectFlow(flow.id));
+      list.appendChild(div);
+    });
+  } else if (currentTab === 'operations') {
+    const entities = [...new Set(DATA.operations.map(o => o.entityId))];
+    const items = DATA.entities.filter(e => entities.includes(e.id) && (!searchQuery || e.name.toLowerCase().includes(searchQuery)));
+    items.forEach(entity => {
+      const ops = DATA.operations.filter(o => o.entityId === entity.id);
+      const div = document.createElement('div');
+      div.className = 'sidebar-item';
+      div.innerHTML = `
+        <span class="sidebar-badge badge-${entity.kind}">${ops.length}</span>
+        <span class="sidebar-label">${entity.name}</span>
+      `;
+      div.addEventListener('click', () => {
+        const target = document.getElementById(`ops-group-${entity.id}`);
+        if (target) target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      });
+      list.appendChild(div);
+    });
+  }
+}
+
+// -- Feature View --
+function selectFeature(id) {
+  selectedFeatureId = id;
+  renderSidebar();
+
+  const content = document.getElementById('feature-content');
+  const feature = (DATA.features || []).find(f => f.id === id);
+  if (!feature) return;
+
+  const surfaces = (feature.surfaceIds || []).map(sid => (DATA.surfaces || []).find(s => s.id === sid)).filter(Boolean);
+  const entities = (feature.entityIds || []).map(eid => DATA.entities.find(e => e.id === eid)).filter(Boolean);
+
+  content.innerHTML = `
+    <div class="feature-header">
+      <div class="feature-title">${feature.name}</div>
+      <div class="feature-meta">
+        <span class="detail-tag badge-${feature.kind}">${feature.kind}</span>
+        <span class="detail-tag badge-${feature.confidence}">${feature.confidence}</span>
+      </div>
+      <div class="detail-desc">${feature.description}</div>
+    </div>
+
+    ${surfaces.length ? `
+    <div class="feature-section">
+      <div class="feature-section-title">Embedded in Surfaces (${surfaces.length})</div>
+      <div>
+        ${surfaces.map(s => `
+          <span class="feature-surface-chip" onclick="switchTab('surfaces'); setTimeout(() => selectSurface('${s.id}'), 50);">
+            <span class="detail-tag badge-${s.actor}">${s.actor}</span>
+            ${s.name}
+          </span>
+        `).join('')}
+      </div>
+    </div>` : ''}
+
+    ${entities.length ? `
+    <div class="feature-section">
+      <div class="feature-section-title">Entities (${entities.length})</div>
+      <div class="surface-entity-list">
+        ${entities.map(e => {
+          const exposure = getExposureLevel(e.id);
+          return `
+            <div class="surface-entity-item" onclick="switchTab('entities'); setTimeout(() => selectEntity('${e.id}'), 50);">
+              <span class="detail-tag badge-${e.kind}">${e.kind}</span>
+              <span class="surface-entity-name">${e.name}</span>
+              <span class="surface-entity-exposure">
+                <span class="exposure-dot exposure-${exposure}"></span>
+                ${getExposureLabel(e.id)}
+              </span>
+            </div>
+          `;
+        }).join('')}
+      </div>
+    </div>` : ''}
+
+    ${(feature.implementations || []).length ? `
+    <div class="feature-section">
+      <div class="feature-section-title">Key Implementations</div>
+      ${feature.implementations.map(impl => `
+        <div class="feature-impl-item">
+          <div class="feature-impl-desc">${impl.description}</div>
+          <div class="feature-impl-path">${impl.file}</div>
+        </div>
+      `).join('')}
+    </div>` : ''}
+  `;
+}
+
+// -- Surface View --
+function selectSurface(id) {
+  selectedSurfaceId = id;
+  renderSidebar();
+
+  const content = document.getElementById('surface-content');
+
+  if (id === '__matrix__') {
+    renderExposureMatrix(content);
+    return;
+  }
+
+  const surface = (DATA.surfaces || []).find(s => s.id === id);
+  if (!surface) return;
+
+  const entities = (surface.entityIds || []).map(eid => DATA.entities.find(e => e.id === eid)).filter(Boolean);
+  const ops = (surface.operationIds || []).map(oid => DATA.operations.find(o => o.id === oid)).filter(Boolean);
+  const flows = (surface.flowIds || []).map(fid => DATA.flows.find(f => f.id === fid)).filter(Boolean);
+  const features = (DATA.features || []).filter(f => (f.surfaceIds || []).includes(id));
+
+  content.innerHTML = `
+    <div class="surface-header">
+      <div class="surface-title">${surface.name}</div>
+      <div class="surface-meta">
+        <span class="detail-tag badge-${surface.actor}">${surface.actor}</span>
+        <span class="detail-tag badge-${surface.confidence}">${surface.confidence}</span>
+        <span class="surface-route">${surface.entrypoint.route}</span>
+      </div>
+      <div class="detail-desc">${surface.description}</div>
+      <div class="impl-path" style="margin-top:6px;">${surface.entrypoint.file}</div>
+    </div>
+
+    ${features.length ? `
+    <div class="surface-section">
+      <div class="surface-section-title">Features (${features.length})</div>
+      <div>
+        ${features.map(f => `
+          <span class="feature-surface-chip" onclick="switchTab('features'); setTimeout(() => selectFeature('${f.id}'), 50);">
+            <span class="detail-tag badge-${f.kind}">${f.kind}</span>
+            ${f.name}
+          </span>
+        `).join('')}
+      </div>
+    </div>` : ''}
+
+    ${entities.length ? `
+    <div class="surface-section">
+      <div class="surface-section-title">Entities (${entities.length})</div>
+      <div class="surface-entity-list">
+        ${entities.map(e => {
+          const exposure = getExposureLevel(e.id);
+          return `
+            <div class="surface-entity-item" onclick="switchTab('entities'); setTimeout(() => selectEntity('${e.id}'), 50);">
+              <span class="detail-tag badge-${e.kind}">${e.kind}</span>
+              <span class="surface-entity-name">${e.name}</span>
+              <span class="surface-entity-exposure">
+                <span class="exposure-dot exposure-${exposure}"></span>
+                ${getExposureLabel(e.id)}
+              </span>
+            </div>
+          `;
+        }).join('')}
+      </div>
+    </div>` : ''}
+
+    ${ops.length ? `
+    <div class="surface-section">
+      <div class="surface-section-title">Operations (${ops.length})</div>
+      ${ops.map(o => `
+        <div class="op-card">
+          <div class="op-card-header">
+            <span class="detail-tag badge-${o.type}">${o.type}</span>
+            <span class="op-card-name">${o.name}</span>
+          </div>
+          <div class="op-card-desc">${o.description}</div>
+          <div class="impl-path">${o.implementation.file} → ${o.implementation.function}</div>
+        </div>
+      `).join('')}
+    </div>` : ''}
+
+    ${flows.length ? `
+    <div class="surface-section">
+      <div class="surface-section-title">Flows (${flows.length})</div>
+      ${flows.map(f => `
+        <div class="detail-link" onclick="switchTab('flows'); setTimeout(() => selectFlow('${f.id}'), 50);">
+          <span class="detail-tag badge-${f.actor}" style="margin-right:6px;">${f.actor}</span>
+          ${f.name}
+          <div class="impl-path">${f.description}</div>
+        </div>
+      `).join('')}
+    </div>` : ''}
+  `;
+}
+
+function renderExposureMatrix(container) {
+  const surfaces = DATA.surfaces || [];
+  const entities = DATA.entities;
+
+  // Sort entities: cross-cutting first, then shared, then scoped
+  const sorted = [...entities].sort((a, b) => {
+    const aCount = (entitySurfaceMap[a.id] || []).length;
+    const bCount = (entitySurfaceMap[b.id] || []).length;
+    return bCount - aCount;
+  });
+
+  container.innerHTML = `
+    <div class="surface-header">
+      <div class="surface-title">Entity Exposure Matrix</div>
+      <div class="detail-desc">Which entities appear in which surfaces. Sorted by exposure (most cross-cutting first).</div>
+    </div>
+    <div class="matrix-container">
+      <table class="matrix-table">
+        <thead>
+          <tr>
+            <th>Entity</th>
+            <th>Kind</th>
+            ${surfaces.map(s => `<th class="rotated">${s.name}</th>`).join('')}
+            <th>Exposure</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${sorted.map(entity => {
+            const exposure = getExposureLevel(entity.id);
+            return `
+              <tr>
+                <td class="entity-cell" onclick="switchTab('entities'); setTimeout(() => selectEntity('${entity.id}'), 50);">${entity.name}</td>
+                <td><span class="detail-tag badge-${entity.kind}">${entity.kind}</span></td>
+                ${surfaces.map(s => {
+                  const isIn = (s.entityIds || []).includes(entity.id);
+                  return `<td><div class="matrix-dot ${isIn ? 'active' : 'inactive'}">${isIn ? '●' : '·'}</div></td>`;
+                }).join('')}
+                <td><span class="matrix-exposure-label exposure-label-${exposure}">${exposure}</span></td>
+              </tr>
+            `;
+          }).join('')}
+        </tbody>
+      </table>
+    </div>
+  `;
+}
+
+// -- Entity Map (Force-directed Graph) --
+function renderEntityMap() {
+  const container = document.getElementById('entity-map-canvas');
+  const rect = container.getBoundingClientRect();
+  const W = rect.width || 800;
+  const H = rect.height || 600;
+
+  // Build nodes
+  const nodes = DATA.entities.map((e, i) => {
+    const angle = (2 * Math.PI * i) / DATA.entities.length;
+    const radius = Math.min(W, H) * 0.3;
+    return {
+      ...e,
+      x: W / 2 + radius * Math.cos(angle),
+      y: H / 2 + radius * Math.sin(angle),
+      vx: 0, vy: 0,
+      w: Math.max(100, e.name.length * 9 + 24),
+      h: 50
+    };
+  });
+
+  const nodeMap = {};
+  nodes.forEach(n => nodeMap[n.id] = n);
+
+  // Build edges
+  const edges = DATA.relationships.filter(r => nodeMap[r.from] && nodeMap[r.to]).map(r => ({
+    ...r,
+    source: nodeMap[r.from],
+    target: nodeMap[r.to]
+  }));
+
+  // Force simulation
+  function simulate() {
+    const k = 0.01;
+    const repulsion = 8000;
+    const damping = 0.85;
+
+    for (let iter = 0; iter < 150; iter++) {
+      for (let i = 0; i < nodes.length; i++) {
+        for (let j = i + 1; j < nodes.length; j++) {
+          let dx = nodes[j].x - nodes[i].x;
+          let dy = nodes[j].y - nodes[i].y;
+          let dist = Math.sqrt(dx * dx + dy * dy) || 1;
+          let force = repulsion / (dist * dist);
+          let fx = (dx / dist) * force;
+          let fy = (dy / dist) * force;
+          nodes[i].vx -= fx;
+          nodes[i].vy -= fy;
+          nodes[j].vx += fx;
+          nodes[j].vy += fy;
+        }
+      }
+
+      edges.forEach(e => {
+        let dx = e.target.x - e.source.x;
+        let dy = e.target.y - e.source.y;
+        let dist = Math.sqrt(dx * dx + dy * dy) || 1;
+        let force = (dist - 200) * k;
+        let fx = (dx / dist) * force;
+        let fy = (dy / dist) * force;
+        e.source.vx += fx;
+        e.source.vy += fy;
+        e.target.vx -= fx;
+        e.target.vy -= fy;
+      });
+
+      nodes.forEach(n => {
+        n.vx += (W / 2 - n.x) * 0.001;
+        n.vy += (H / 2 - n.y) * 0.001;
+        n.vx *= damping;
+        n.vy *= damping;
+        n.x += n.vx;
+        n.y += n.vy;
+        n.x = Math.max(n.w / 2 + 10, Math.min(W - n.w / 2 - 10, n.x));
+        n.y = Math.max(n.h / 2 + 10, Math.min(H - n.h / 2 - 10, n.y));
+      });
+    }
+  }
+
+  simulate();
+
+  // Render SVG
+  const svgNS = 'http://www.w3.org/2000/svg';
+  const svg = document.createElementNS(svgNS, 'svg');
+  svg.setAttribute('width', W);
+  svg.setAttribute('height', H);
+  svg.setAttribute('viewBox', `0 0 ${W} ${H}`);
+
+  let viewBox = { x: 0, y: 0, w: W, h: H };
+  let isPanning = false;
+  let panStart = { x: 0, y: 0 };
+  let dragNode = null;
+
+  function updateViewBox() {
+    svg.setAttribute('viewBox', `${viewBox.x} ${viewBox.y} ${viewBox.w} ${viewBox.h}`);
+  }
+
+  svg.addEventListener('wheel', e => {
+    e.preventDefault();
+    const scale = e.deltaY > 0 ? 1.08 : 0.92;
+    const mouseX = viewBox.x + (e.offsetX / W) * viewBox.w;
+    const mouseY = viewBox.y + (e.offsetY / H) * viewBox.h;
+    const newW = viewBox.w * scale;
+    const newH = viewBox.h * scale;
+    viewBox.x = mouseX - (mouseX - viewBox.x) * scale;
+    viewBox.y = mouseY - (mouseY - viewBox.y) * scale;
+    viewBox.w = newW;
+    viewBox.h = newH;
+    updateViewBox();
+  });
+
+  svg.addEventListener('mousedown', e => {
+    if (e.target === svg || e.target.tagName === 'line' || e.target.classList.contains('edge-label')) {
+      isPanning = true;
+      panStart = { x: e.clientX, y: e.clientY };
+    }
+  });
+
+  svg.addEventListener('mousemove', e => {
+    if (isPanning) {
+      const dx = (e.clientX - panStart.x) * (viewBox.w / W);
+      const dy = (e.clientY - panStart.y) * (viewBox.h / H);
+      viewBox.x -= dx;
+      viewBox.y -= dy;
+      panStart = { x: e.clientX, y: e.clientY };
+      updateViewBox();
+    }
+    if (dragNode) {
+      const svgRect = svg.getBoundingClientRect();
+      dragNode.x = viewBox.x + ((e.clientX - svgRect.left) / svgRect.width) * viewBox.w;
+      dragNode.y = viewBox.y + ((e.clientY - svgRect.top) / svgRect.height) * viewBox.h;
+      renderGraph();
+    }
+  });
+
+  svg.addEventListener('mouseup', () => {
+    isPanning = false;
+    dragNode = null;
+  });
+
+  svg.addEventListener('mouseleave', () => {
+    isPanning = false;
+    dragNode = null;
+  });
+
+  container.innerHTML = '';
+  container.appendChild(svg);
+
+  function renderGraph() {
+    svg.innerHTML = '';
+
+    edges.forEach(e => {
+      const line = document.createElementNS(svgNS, 'line');
+      line.setAttribute('x1', e.source.x);
+      line.setAttribute('y1', e.source.y);
+      line.setAttribute('x2', e.target.x);
+      line.setAttribute('y2', e.target.y);
+      line.classList.add('edge-line');
+      svg.appendChild(line);
+
+      const midX = (e.source.x + e.target.x) / 2;
+      const midY = (e.source.y + e.target.y) / 2;
+      const label = document.createElementNS(svgNS, 'text');
+      label.setAttribute('x', midX);
+      label.setAttribute('y', midY - 6);
+      label.classList.add('edge-label');
+      label.textContent = e.type;
+      svg.appendChild(label);
+    });
+
+    nodes.forEach(n => {
+      const g = document.createElementNS(svgNS, 'g');
+      g.classList.add('node-group');
+      if (selectedEntityId === n.id) g.classList.add('node-selected');
+
+      const colors = KIND_COLORS[n.kind] || DEFAULT_COLOR;
+      const isLow = n.confidence === 'low';
+
+      const rect = document.createElementNS(svgNS, 'rect');
+      rect.setAttribute('x', n.x - n.w / 2);
+      rect.setAttribute('y', n.y - n.h / 2);
+      rect.setAttribute('width', n.w);
+      rect.setAttribute('height', n.h);
+      rect.setAttribute('fill', colors.fill);
+      rect.setAttribute('stroke', colors.stroke);
+      rect.classList.add('node-rect');
+      if (isLow) rect.setAttribute('stroke-dasharray', '4 3');
+      g.appendChild(rect);
+
+      const text = document.createElementNS(svgNS, 'text');
+      text.setAttribute('x', n.x);
+      text.setAttribute('y', n.y - 4);
+      text.classList.add('node-label');
+      text.textContent = n.name;
+      g.appendChild(text);
+
+      const kind = document.createElementNS(svgNS, 'text');
+      kind.setAttribute('x', n.x);
+      kind.setAttribute('y', n.y + 12);
+      kind.classList.add('node-kind');
+      kind.textContent = n.kind;
+      g.appendChild(kind);
+
+      g.addEventListener('click', e => {
+        e.stopPropagation();
+        selectEntity(n.id);
+      });
+
+      g.addEventListener('mousedown', e => {
+        e.stopPropagation();
+        dragNode = n;
+      });
+
+      svg.appendChild(g);
+    });
+  }
+
+  renderGraph();
+  container._renderGraph = renderGraph;
+}
+
+// -- Entity Detail --
+function selectEntity(id) {
+  selectedEntityId = id;
+  const entity = DATA.entities.find(e => e.id === id);
+  if (!entity) return;
+
+  renderSidebar();
+  highlightNode(id);
+
+  const panel = document.getElementById('entity-detail');
+  panel.classList.add('open');
+
+  const rels = DATA.relationships.filter(r => r.from === id || r.to === id);
+  const ops = DATA.operations.filter(o => o.entityId === id);
+  const flows = DATA.flows.filter(f => f.steps.some(s => s.entityId === id));
+  const surfaces = (DATA.surfaces || []).filter(s => (s.entityIds || []).includes(id));
+  const features = (DATA.features || []).filter(f => (f.entityIds || []).includes(id));
+  const exposure = getExposureLevel(id);
+
+  panel.innerHTML = `
+    <div class="detail-header">
+      <div>
+        <div class="detail-title">${entity.name}</div>
+        <div style="margin-top:4px;">
+          <span class="detail-tag badge-${entity.kind}">${entity.kind}</span>
+          <span class="detail-tag badge-${entity.confidence}">${entity.confidence}</span>
+          <span class="matrix-exposure-label exposure-label-${exposure}" style="margin-left:4px;">${exposure}</span>
+        </div>
+      </div>
+      <span class="detail-close" onclick="closeDetail()">&times;</span>
+    </div>
+
+    <div class="detail-section">
+      <div class="detail-section-title">Description</div>
+      <div class="detail-desc">${entity.description}</div>
+    </div>
+
+    <div class="detail-section">
+      <div class="detail-section-title">Source</div>
+      <div class="impl-path">${entity.source.file}:${entity.source.line}</div>
+    </div>
+
+    ${surfaces.length ? `
+    <div class="detail-section">
+      <div class="detail-section-title">Surfaces (${surfaces.length})</div>
+      ${surfaces.map(s => `
+        <div class="detail-link" onclick="switchTab('surfaces'); setTimeout(() => selectSurface('${s.id}'), 50);">
+          <span class="detail-tag badge-${s.actor}" style="margin-right:6px;">${s.actor}</span>${s.name}
+          <div class="impl-path">${s.entrypoint.route}</div>
+        </div>
+      `).join('')}
+    </div>` : ''}
+
+    ${features.length ? `
+    <div class="detail-section">
+      <div class="detail-section-title">Used by Features (${features.length})</div>
+      ${features.map(f => `
+        <div class="detail-link" onclick="switchTab('features'); setTimeout(() => selectFeature('${f.id}'), 50);">
+          <span class="detail-tag badge-${f.kind}" style="margin-right:6px;">${f.kind}</span>${f.name}
+        </div>
+      `).join('')}
+    </div>` : ''}
+
+    ${entity.fields.length ? `
+    <div class="detail-section">
+      <div class="detail-section-title">Fields</div>
+      ${entity.fields.map(f => `
+        <div class="field-row">
+          <span class="field-name">${f.name}</span>
+          <span class="field-type">${f.type}</span>
+          <span class="field-desc">${f.description}</span>
+        </div>
+      `).join('')}
+    </div>` : ''}
+
+    ${rels.length ? `
+    <div class="detail-section">
+      <div class="detail-section-title">Relationships</div>
+      ${rels.map(r => {
+        const other = r.from === id ? DATA.entities.find(e => e.id === r.to) : DATA.entities.find(e => e.id === r.from);
+        const label = r.from === id ? `${r.type} → ${other?.name || r.to}` : `← ${r.type} ${other?.name || r.from}`;
+        return `<div class="detail-link" onclick="selectEntity('${other?.id}')">${label}<div class="impl-path">${r.description}</div></div>`;
+      }).join('')}
+    </div>` : ''}
+
+    ${ops.length ? `
+    <div class="detail-section">
+      <div class="detail-section-title">Operations</div>
+      ${ops.map(o => `
+        <div class="detail-link" style="cursor:default;">
+          <span class="detail-tag badge-${o.type}" style="margin-right:6px;">${o.type}</span>${o.name}
+          <div class="impl-path">${o.implementation.file} → ${o.implementation.function}</div>
+        </div>
+      `).join('')}
+    </div>` : ''}
+
+    ${flows.length ? `
+    <div class="detail-section">
+      <div class="detail-section-title">Participates in Flows</div>
+      ${flows.map(f => `
+        <div class="detail-link" onclick="switchTab('flows'); setTimeout(() => selectFlow('${f.id}'), 50);">${f.name}</div>
+      `).join('')}
+    </div>` : ''}
+  `;
+}
+
+function highlightNode(id) {
+  document.querySelectorAll('.node-group').forEach(g => g.classList.remove('node-selected'));
+  const canvas = document.getElementById('entity-map-canvas');
+  if (canvas._renderGraph) canvas._renderGraph();
+}
+
+function closeDetail() {
+  selectedEntityId = null;
+  document.getElementById('entity-detail').classList.remove('open');
+  renderSidebar();
+  highlightNode(null);
+}
+
+// -- Flow View --
+function selectFlow(id) {
+  selectedFlowId = id;
+  const flow = DATA.flows.find(f => f.id === id);
+  if (!flow) return;
+
+  renderSidebar();
+
+  const content = document.getElementById('flow-content');
+  content.innerHTML = `
+    <div class="flow-title">${flow.name}</div>
+    <div class="flow-meta">
+      <span><span class="detail-tag badge-${flow.actor}">${flow.actor}</span></span>
+      <span><span class="detail-tag badge-${flow.confidence}">${flow.confidence}</span></span>
+    </div>
+    <div class="detail-desc" style="margin-bottom:8px;">${flow.description}</div>
+    <div class="detail-desc" style="margin-bottom:24px; font-style:italic;">Trigger: ${flow.trigger}</div>
+
+    <div class="flow-steps">
+      ${flow.steps.map(step => {
+        const op = step.operationId ? DATA.operations.find(o => o.id === step.operationId) : null;
+        const entity = step.entityId ? DATA.entities.find(e => e.id === step.entityId) : null;
+        return `
+          <div class="flow-step">
+            <div class="flow-step-num">Step ${step.order}</div>
+            <div class="flow-step-desc">${step.description}</div>
+            <div class="flow-step-tags">
+              ${op ? `<span class="detail-tag badge-${op.type}">${op.name}</span>` : ''}
+              ${entity ? `<span class="detail-tag badge-${entity.kind}" style="cursor:pointer;" onclick="switchTab('entities'); setTimeout(() => selectEntity('${entity.id}'), 50);">${entity.name}</span>` : ''}
+            </div>
+            <div class="impl-path">${step.implementation.file} → ${step.implementation.function}</div>
+          </div>
+        `;
+      }).join('')}
+    </div>
+  `;
+}
+
+// -- Operations View --
+function renderOperations() {
+  const content = document.getElementById('ops-content');
+  const entityIds = [...new Set(DATA.operations.map(o => o.entityId))];
+
+  content.innerHTML = entityIds.map(eid => {
+    const entity = DATA.entities.find(e => e.id === eid);
+    const ops = DATA.operations.filter(o => o.entityId === eid);
+    return `
+      <div class="ops-group" id="ops-group-${eid}">
+        <div class="ops-group-title">
+          <span class="detail-tag badge-${entity?.kind || ''}" style="margin-right:6px;">${entity?.kind || ''}</span>
+          ${entity?.name || eid}
+        </div>
+        ${ops.map(o => `
+          <div class="op-card">
+            <div class="op-card-header">
+              <span class="detail-tag badge-${o.type}">${o.type}</span>
+              <span class="op-card-name">${o.name}</span>
+              <span class="detail-tag badge-${o.confidence}" style="margin-left:auto;">${o.confidence}</span>
+            </div>
+            <div class="op-card-desc">${o.description}</div>
+            <div class="impl-path">${o.implementation.file} → ${o.implementation.function}</div>
+            ${o.sideEffects.length ? `<div class="op-card-effects">Side effects: ${o.sideEffects.join('; ')}</div>` : ''}
+          </div>
+        `).join('')}
+      </div>
+    `;
+  }).join('');
+}
+
+// -- File Loading --
+function loadData(json) {
+  try {
+    DATA = typeof json === 'string' ? JSON.parse(json) : json;
+    if (!DATA.meta || !DATA.entities || !DATA.relationships || !DATA.operations || !DATA.flows) {
+      throw new Error('Missing required fields: meta, entities, relationships, operations, flows');
+    }
+    // Default to empty arrays for backwards compatibility
+    if (!DATA.surfaces) DATA.surfaces = [];
+    if (!DATA.features) DATA.features = [];
+    document.getElementById('drop-zone-overlay').style.display = 'none';
+    init();
+  } catch (e) {
+    const err = document.getElementById('drop-zone-error');
+    err.textContent = 'Invalid JSON: ' + e.message;
+    err.style.display = 'block';
+  }
+}
+
+function handleFile(file) {
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = e => loadData(e.target.result);
+  reader.readAsText(file);
+}
+
+// Drop zone events
+const dropZone = document.getElementById('drop-zone');
+const fileInput = document.getElementById('file-input');
+
+document.getElementById('browse-btn').addEventListener('click', () => fileInput.click());
+fileInput.addEventListener('change', e => handleFile(e.target.files[0]));
+
+dropZone.addEventListener('dragover', e => { e.preventDefault(); dropZone.classList.add('dragover'); });
+dropZone.addEventListener('dragleave', () => dropZone.classList.remove('dragover'));
+dropZone.addEventListener('drop', e => {
+  e.preventDefault();
+  dropZone.classList.remove('dragover');
+  handleFile(e.dataTransfer.files[0]);
+});
+
+document.body.addEventListener('dragover', e => e.preventDefault());
+document.body.addEventListener('drop', e => {
+  e.preventDefault();
+  if (e.dataTransfer.files.length) {
+    handleFile(e.dataTransfer.files[0]);
+  }
+});
+</script>
+</body>
+</html>
