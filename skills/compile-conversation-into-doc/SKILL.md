@@ -90,7 +90,7 @@ If no issues are found, confirm briefly (e.g. "All N messages loaded, no integri
 - Open questions or unresolved uncertainties
 - Reusable frameworks, rules, or takeaways
 
-3. Choose the most appropriate document type. Explicitly state the chosen document type at the top of each document. Automatically decide whether the output should be:
+4. Choose the most appropriate document type. Explicitly state the chosen document type at the top of each document. Automatically decide whether the output should be:
 
 - Technical spec
 - Research notes
@@ -100,28 +100,28 @@ If no issues are found, confirm briefly (e.g. "All N messages loaded, no integri
 - Personal reference guide
 - Hybrid (if appropriate)
 
-4. Re-organize by meaning, not chronology
+5. Re-organize by meaning, not chronology
 
 - Group related ideas together
 - Merge repeated explanations
 - Eliminate conversational filler
 - Preserve nuance where it matters
 
-5. Make it scannable
+6. Make it scannable
 
 - Clear section headers
 - Bullet points where useful
 - Short paragraphs
 - Optional TL;DR at the top if the document is long
 
-6. Write output to file(s)
+7. Write output to file(s)
 
 - Dump the final result into one or more Markdown files
 - Choose sensible filenames (e.g. summary.md, spec.md, medical-overview.md)
 - If multiple documents are produced, each file should have a clear purpose and minimal overlap
 - Write the files as standalone documents that do not reference the original chat or filenames
 
-7. Do NOT
+8. Do NOT
 
 - Invent new facts
 - Add external knowledge unless clearly implied by the conversation
