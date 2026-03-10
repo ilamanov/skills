@@ -64,7 +64,25 @@ Your output fixes this.
 - Do not skip messages
 - Track how ideas evolve over time
 
-2. Identify and extract
+2. Validate conversation integrity
+
+Before doing any compilation work, scan the full set of loaded messages for signs of broken or incomplete extraction. Check for:
+
+- **Missing messages**: gaps in the numeric sequence (e.g. 1, 2, 4 — missing 3), or an ai.md file without a matching user.md (or vice versa)
+- **Truncated messages**: files that end abruptly mid-sentence or mid-word, suggesting the export cut off early
+- **Empty or near-empty files**: message files that contain no meaningful content (blank, only whitespace, or just a few characters)
+- **Encoding artifacts**: garbled text, mojibake, or excessive escaped characters that indicate a broken export
+- **Obvious duplication**: the same message content repeated across multiple files
+
+If any issues are found:
+
+- **Stop and report them to the user before proceeding.** List each issue clearly (e.g. "File `5-ai.md` appears truncated — it ends mid-sentence", "Files `3-user.md` and `3-ai.md` are missing from the sequence").
+- Ask the user whether they want to proceed anyway (with the available data) or fix the source files first.
+- Do NOT silently skip or work around broken data — the user should always be aware of gaps that could affect the final document quality.
+
+If no issues are found, confirm briefly (e.g. "All N messages loaded, no integrity issues detected.") and continue.
+
+3. Identify and extract
 
 - Key findings
 - Important explanations
