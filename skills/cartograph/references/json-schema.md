@@ -12,7 +12,8 @@ This is the contract between the extraction skill and the visualizer. Output mus
   "entities": [ ... ],
   "relationships": [ ... ],
   "operations": [ ... ],
-  "flows": [ ... ]
+  "flows": [ ... ],
+  "compartments": [ ... ]
 }
 ```
 
@@ -49,6 +50,7 @@ A surface is a self-contained entry point or standalone piece of functionality i
   "entityIds": ["creation", "prompt-template", "model-config"],
   "operationIds": ["generate-preview", "refine-prompt"],
   "flowIds": ["creation-flow"],
+  "compartmentIds": ["creation-studio-ui", "prompt-engine"],
   "confidence": "high"
 }
 ```
@@ -63,6 +65,7 @@ A surface is a self-contained entry point or standalone piece of functionality i
 - `entityIds` — references to entity ids that this surface touches
 - `operationIds` — references to operation ids used within this surface
 - `flowIds` — references to flow ids that belong to this surface
+- `compartmentIds` — references to compartment ids for code areas that serve this surface. Populated during Phase 9 (compartment dependency mapping)
 - `confidence` — `"high"` | `"medium"` | `"low"`
 
 ### Entity exposure
@@ -85,6 +88,8 @@ A feature is a standalone capability embedded within one or more surfaces. Surfa
     { "file": "app/chat/[personaSlug]/components/wizard-modal/index.tsx", "description": "Wizard modal entry point" },
     { "file": "app/chat/[personaSlug]/wizard-actions/core.ts", "description": "Server actions for wizard submission and FAL polling" }
   ],
+  "compartmentIds": ["prompt-wizard-ui", "image-generation-pipeline"],
+  "files": [],
   "confidence": "high"
 }
 ```
@@ -104,6 +109,10 @@ A feature is a standalone capability embedded within one or more surfaces. Surfa
 - `implementations[]` — key files (2-5 most important)
   - `file` — relative file path
   - `description` — what this file does for the feature
+- `compartmentIds` — references to compartment ids for code areas that implement this feature. This is the primary code-mapping mechanism — use compartments to understand which code belongs to this feature. Populated during Phase 9
+- `files` — *(deprecated, kept for backwards compatibility)* exhaustive list of every file that participates in this feature. **No longer populated** — replaced by `compartmentIds`. Each entry:
+  - `file` — relative file path
+  - `role` — short label: `"component"`, `"action"`, `"hook"`, `"lib"`, `"style"`, `"test"`, `"type"`, `"config"`, `"api"`, `"other"`
 - `confidence` — `"high"` | `"medium"` | `"low"`
 
 ### Feature vs. Surface
@@ -240,6 +249,65 @@ A **surface** has a URL and is something users navigate to. A **feature** is a c
     - `function` — function/component name
 - `confidence` — `"high"` | `"medium"` | `"low"`
 
+## `compartments[]`
+
+A compartment is a logical grouping of related files that form a cohesive unit of functionality. Compartments bridge the product-side view (surfaces, features) with the underlying code structure. They are nestable (via `parentId`), non-exclusive (a file can appear in multiple compartments), and exhaustive (every non-generated file belongs to at least one compartment).
+
+```json
+{
+  "id": "image-generation-pipeline",
+  "name": "Image Generation Pipeline",
+  "description": "Server actions, FAL client integration, and prompt assembly for generating images via the wizard and content studio.",
+  "parentId": "content-generation",
+  "tags": ["business-logic", "api-integration"],
+  "files": [
+    { "file": "app/chat/[personaSlug]/actions/generate-image.ts", "role": "action" },
+    { "file": "lib/fal-client.ts", "role": "lib" },
+    { "file": "lib/prompt-assembly.ts", "role": "lib" }
+  ],
+  "featureIds": ["image-generation", "prompt-wizard"],
+  "surfaceIds": ["chat-thread", "admin-content-studio"],
+  "dependsOn": ["media-delivery", "database-access"],
+  "confidence": "high"
+}
+```
+
+- `id` — unique kebab-case identifier
+- `name` — human-readable compartment name (name after what it does, not folder names)
+- `description` — 1-2 sentence explanation of what this code area does
+- `parentId` — ID of parent compartment, or `null` for top-level compartments. Enables unlimited nesting depth
+- `tags` — semi-structured tags from the suggested vocabulary below; the AI may also add custom tags as needed
+- `files[]` — all files in this compartment with their roles
+  - `file` — relative file path from repo root
+  - `role` — one of: `"component"`, `"hook"`, `"action"`, `"api"`, `"lib"`, `"type"`, `"config"`, `"style"`, `"test"`, `"other"` (same role enum as feature files)
+- `featureIds` — IDs of features this compartment implements (can be empty)
+- `surfaceIds` — IDs of surfaces this compartment serves (can be empty)
+- `dependsOn` — IDs of other compartments this one depends on (imports from). Only inter-compartment dependencies, no self-references
+- `confidence` — `"high"` | `"medium"` | `"low"`
+
+### Tag vocabulary (semi-structured)
+
+Suggested core tags — the AI should use these when applicable and may create additional custom tags:
+
+- `ui` — visual components, layouts, styling
+- `data-access` — database queries, Prisma operations, data fetching
+- `business-logic` — domain rules, calculations, validation
+- `api` — API routes, server actions, external service integrations
+- `api-integration` — third-party service clients (FAL, Clerk, Stripe, etc.)
+- `infrastructure` — config, build tooling, dev tooling, CI/CD
+- `shared` — utilities used across many compartments
+- `state-management` — stores, context providers, state hooks
+- `auth` — authentication and authorization
+- `testing` — test files, test utilities, fixtures
+
+### Compartment guidelines
+
+- Don't create compartments with only 1 file — merge small groupings into their parent
+- Keep top-level compartments to 8–15 for a typical web app; more sub-compartments are fine
+- Prefer meaningful groupings over 1:1 folder mapping
+- Every non-generated file must appear in at least one compartment
+- Config/infra files go into a "Project Infrastructure" compartment
+
 ## ID Convention
 
 All IDs are kebab-case and globally unique within their array. Use descriptive names:
@@ -249,6 +317,7 @@ All IDs are kebab-case and globally unique within their array. Use descriptive n
 - Relationship: `"user-has-many-posts"`, `"post-belongs-to-user"`
 - Operation: `"create-post"`, `"delete-comment"`, `"publish-draft"`
 - Flow: `"post-creation-flow"`, `"user-onboarding-flow"`
+- Compartment: `"image-generation-pipeline"`, `"auth-system"`, `"project-infrastructure"`, `"ui-primitives"`
 
 ## Confidence Guidelines
 

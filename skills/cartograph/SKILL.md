@@ -2,19 +2,21 @@
 name: cartograph
 description: >
   Map any TypeScript/JS web app codebase into a structured vocabulary of surfaces,
-  features, entities, relationships, operations, and flows. Surfaces are entry points
-  (pages/routes); features are standalone capabilities embedded across surfaces
-  (e.g., "Prompt Wizard", "Star Credits", "Content Unlock"). Produces a JSON file
-  and an interactive HTML visualizer. Use when the user wants to understand a codebase,
-  map its structure, see what entities exist, understand data flows, or get a high-level
-  overview of what an app does. Triggers on: "map this codebase", "what does this app do",
-  "show me the entities", "cartograph", "extract the structure", "codebase overview",
-  "understand this repo".
+  features, entities, relationships, operations, flows, and compartments. Surfaces are
+  entry points (pages/routes); features are standalone capabilities embedded across
+  surfaces (e.g., "Prompt Wizard", "Star Credits", "Content Unlock"); compartments are
+  logical groupings of related code files that bridge product concepts to the underlying
+  codebase. Produces a JSON file and an interactive HTML visualizer. Use when the user
+  wants to understand a codebase, map its structure, see what entities exist, understand
+  data flows, examine code organization, or get a high-level overview of what an app does.
+  Triggers on: "map this codebase", "what does this app do", "show me the entities",
+  "cartograph", "extract the structure", "codebase overview", "understand this repo",
+  "code map", "show me the code structure".
 ---
 
 # Cartograph
 
-Extract a structural map of any TypeScript/JS web app: surfaces, features, entities, relationships, operations, and flows. Three orthogonal axes — surfaces are where you go (pages/entry points), features are what you can do (standalone capabilities), entities are what the app works with (data).
+Extract a structural map of any TypeScript/JS web app: surfaces, features, entities, relationships, operations, flows, and compartments. Four orthogonal axes — surfaces are where you go (pages/entry points), features are what you can do (standalone capabilities), entities are what the app works with (data), and compartments are how the code is organized (logical file groupings that bridge product concepts to the underlying codebase).
 
 ## Workflow
 
@@ -119,11 +121,51 @@ For each entry point (route handler, server action, API endpoint):
 4. Identify trigger and actor (user/admin/system)
 5. List steps in order, linking to operations and entities
 
-### Phase 8: Output
+### Phase 8: Extract Compartments
+
+Compartments are logical groupings of related files that form cohesive units of functionality. They bridge the product-side view (surfaces, features) with the underlying code structure, so a developer can navigate from "what does this feature do?" to "where does that code live?"
+
+1. Scan the full codebase file tree, using the already-extracted surfaces, features, entities, and operations as context
+2. Group files into compartments using AI judgment based on multiple signals:
+   - **Folder structure** — files in the same directory or subtree often belong together
+   - **Import graph** — files that heavily import each other are likely in the same compartment
+   - **Feature alignment** — files belonging to a feature should cluster into compartments that map to those features
+   - **Domain proximity** — files dealing with the same entity or business concept belong together
+   - **Naming conventions** — files with related names (e.g., `image-*.ts`, `*-generation.*`) suggest a compartment
+   - **Shared infrastructure** — truly shared files (used by 3+ features) may warrant their own compartment or may appear in multiple compartments
+3. Compartments are **nestable** — sub-compartments can be nested to any depth the AI deems appropriate. A typical web app might have 2–3 levels
+4. Files are **non-exclusive** — a file can appear in multiple compartments (e.g., `lib/prisma.ts` in both "Database Access" and "Shared Infrastructure")
+5. **Every file must appear in at least one compartment.** Config files, build tooling, etc. go into a "Project Infrastructure" compartment. Exclude generated files (`generated/`, `node_modules/`, `.next/`, `dist/`)
+6. For each compartment, determine:
+   - **Name and description**: what this code area does (name after what it does, not folder names — "Image Generation Pipeline" not "app/chat/actions")
+   - **Tags**: semi-structured tags from the suggested vocabulary (see json-schema.md), plus custom tags as needed
+   - **Files**: all files in this compartment with their role (component, hook, action, api, lib, type, config, style, test, other)
+   - **parentId**: ID of parent compartment (null for top-level)
+   - **featureIds**: which features this compartment implements
+   - **surfaceIds**: which surfaces this compartment serves
+
+#### Compartment guidelines
+
+- **Don't create compartments with only 1 file** unless it's a genuinely standalone module. Merge small groupings into their parent.
+- **Keep top-level compartments to 8–15** for a typical web app. More sub-compartments are fine.
+- **Prefer meaningful groupings over 1:1 folder mapping.** If a folder contains unrelated files, split them. If related files span folders, group them.
+
+### Phase 9: Map Compartment Dependencies
+
+For each compartment, examine the import statements of its files to determine which other compartments it depends on:
+
+1. Walk the imports of every file in a compartment
+2. Map each imported file to the compartment(s) it belongs to
+3. Record these as `dependsOn` edges (only inter-compartment, not self-references)
+4. Also populate `compartmentIds` on features and surfaces during this phase
+
+### Phase 10: Output
 
 1. Assemble JSON following the schema in `references/json-schema.md`
-2. Write `cartograph.json` to the repo root
-3. Tell the user: "Open the visualizer (`assets/visualizer.html` in this skill's directory) in your browser and load `cartograph.json` via the file picker."
+2. For every feature, set `"files": []` (empty array) and populate `"compartmentIds"` with the IDs of compartments that implement this feature. **Do NOT populate the `files` field during the initial scan.** The `compartmentIds` field is the primary code-mapping mechanism; `files` is kept for backwards compatibility.
+3. For every surface, populate `"compartmentIds"` with the IDs of compartments that serve this surface.
+4. Write `cartograph.json` to the repo root
+5. Tell the user: "Open the visualizer (`assets/visualizer.html` in this skill's directory) in your browser and load `cartograph.json` via the file picker."
 
 ## Important
 

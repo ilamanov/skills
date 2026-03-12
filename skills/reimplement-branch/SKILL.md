@@ -7,12 +7,16 @@ description: Reimplement the current branch on a new branch with a clean, narrat
 
 Create a new branch with a clean, narrative-quality commit history from an existing branch's changes.
 
-## Context
+## Gather Context
 
-- Source branch: !`git branch --show-current`
-- Git status: !`git status --short`
-- Commits since main: !`git log main..HEAD --oneline`
-- Full diff against main: !`git diff main...HEAD --stat`
+Run these commands to understand the current state:
+
+```bash
+git branch --show-current          # Source branch
+git status --short                 # Uncommitted changes
+git log main..HEAD --oneline       # Commits since main
+git diff main...HEAD --stat        # Full diff summary
+```
 
 ## Workflow
 
