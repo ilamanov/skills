@@ -13,7 +13,9 @@ This is the contract between the extraction skill and the visualizer. Output mus
   "relationships": [ ... ],
   "operations": [ ... ],
   "flows": [ ... ],
-  "compartments": [ ... ]
+  "compartments": [ ... ],
+  "fileTree": [ ... ],
+  "codeHealth": { ... }
 }
 ```
 
@@ -32,6 +34,260 @@ This is the contract between the extraction skill and the visualizer. Output mus
 - `analyzedAt` — ISO 8601 timestamp
 - `version` — schema version, always `"0.1.0"` for V0
 - `rootDir` — root directory analyzed (usually `"."`)
+
+## `codeHealth`
+
+Persistent engineering health metrics. This key is **optional for backwards compatibility**; when absent, the visualizer should show a graceful "No code health data" state.
+
+```json
+{
+  "analyzedAt": "2025-01-15T10:30:00Z",
+  "metrics": [
+    {
+      "id": "co-location",
+      "name": "Co-location",
+      "description": "Measures whether files live close to their consumers",
+      "score": 92,
+      "thresholds": { "green": 90, "yellow": 70 },
+      "summary": "8 of 103 evaluated files are misplaced",
+      "findings": [
+        {
+          "file": "lib/format-date.ts",
+          "verdict": "fail",
+          "reason": "Used exclusively by app/chat — should be co-located",
+          "consumers": ["app/chat/[personaSlug]/components/message-bubble.tsx"],
+          "recommendation": {
+            "action": "move",
+            "target": "app/chat/[personaSlug]/lib/format-date.ts"
+          }
+        }
+      ]
+    },
+    {
+      "id": "dryness",
+      "name": "DRYness",
+      "description": "Measures duplicated or near-duplicated functionality",
+      "score": 78,
+      "thresholds": { "green": 90, "yellow": 70 },
+      "summary": "3 duplication clusters found across 7 files",
+      "scalingFactor": 0.97,
+      "findings": [
+        {
+          "id": "prompt-remix-duplication",
+          "title": "Prompt remix experience duplicated across surfaces",
+          "severity": "high",
+          "implementations": [
+            {
+              "location": "app/chat/[personaSlug]/components/prompt-remix.tsx",
+              "description": "Chat-embedded prompt remix modal with conversation context"
+            },
+            {
+              "location": "app/admin/components/remix-panel.tsx",
+              "description": "Admin panel for remixing prompts during content review"
+            }
+          ],
+          "sharedLogic": [
+            "Prompt transformation state machine",
+            "FAL API client for remix generation",
+            "Prompt history tracking"
+          ],
+          "recommendation": {
+            "action": "Extract shared logic",
+            "target": "features/prompt-remix/",
+            "shared": ["remix state machine", "API client", "prompt history hook"],
+            "keepSeparate": ["admin UI chrome", "chat modal wrapper", "conversation context injection"]
+          }
+        }
+      ]
+    },
+    {
+      "id": "dead-code",
+      "name": "Dead Code",
+      "description": "Measures how much of the codebase is unreachable, orphaned, or unused",
+      "score": 95,
+      "thresholds": { "green": 90, "yellow": 70 },
+      "summary": "12 dead items found: 8 dead files, 1 orphaned surface, 1 orphaned feature, 2 dead entities. 3 test-only files flagged.",
+      "findings": [
+        {
+          "id": "dead-file-lib-old-utils",
+          "kind": "dead-file",
+          "severity": "high",
+          "target": "lib/old-utils.ts",
+          "reason": "No file in the codebase imports this file",
+          "evidence": {
+            "importers": []
+          },
+          "recommendation": {
+            "action": "remove",
+            "detail": "Delete this file — nothing imports it and it is not an entry point."
+          }
+        }
+      ]
+    }
+  ]
+}
+```
+
+- `analyzedAt` — ISO 8601 timestamp for when the health metrics were computed
+- `metrics[]` — pluggable array of engineering metrics. The visualizer dispatches on `metric.id` to render each metric's finding type
+  - `id` — stable kebab-case metric identifier (for example `"co-location"` or `"dryness"`)
+  - `name` — human-readable label shown in the visualizer
+  - `description` — 1 sentence explanation of what this metric measures
+  - `score` — 0–100 integer or float
+  - `thresholds.green` — score at or above this is green
+  - `thresholds.yellow` — score at or above this is yellow and below green; anything lower is red
+- `summary` — short plain-language summary of the current result
+- `findings[]` — metric-specific finding objects
+- `scalingFactor` — optional metric-specific scalar (currently used by DRYness)
+- Metrics may define additional finding-level fields beyond the shared envelope. Dead-code findings use `target`, `evidence`, and `recommendation.detail`.
+
+### Co-location metric
+
+The co-location metric uses `metric.id = "co-location"` and binary pass/fail findings for every misplaced file.
+
+```json
+{
+  "file": "lib/format-date.ts",
+  "verdict": "fail",
+  "reason": "Used exclusively by app/chat — should be co-located",
+  "consumers": ["app/chat/[personaSlug]/components/message-bubble.tsx"],
+  "recommendation": {
+    "action": "move",
+    "target": "app/chat/[personaSlug]/lib/format-date.ts"
+  }
+}
+```
+
+- `file` — misplaced file path
+- `verdict` — `"pass"` or `"fail"`; only failing findings need to be emitted in the metric summary list
+- `reason` — plain-language explanation of why the file is misplaced
+- `consumers[]` — importing files that justify the verdict
+- `recommendation.action` — `"move"` or `"promote"`
+- `recommendation.target` — suggested new path or destination directory
+
+### DRYness metric
+
+The DRYness metric uses `metric.id = "dryness"` and emits duplication clusters or near-duplicate implementations.
+
+```json
+{
+  "id": "prompt-remix-duplication",
+  "title": "Prompt remix experience duplicated across surfaces",
+  "severity": "high",
+  "implementations": [
+    {
+      "location": "app/chat/[personaSlug]/components/prompt-remix.tsx",
+      "description": "Chat-embedded prompt remix modal with conversation context"
+    },
+    {
+      "location": "app/admin/components/remix-panel.tsx",
+      "description": "Admin panel for remixing prompts during content review"
+    }
+  ],
+  "sharedLogic": [
+    "Prompt transformation state machine",
+    "FAL API client for remix generation",
+    "Prompt history tracking"
+  ],
+  "recommendation": {
+    "action": "Extract shared logic",
+    "target": "features/prompt-remix/",
+    "shared": ["remix state machine", "API client", "prompt history hook"],
+    "keepSeparate": ["admin UI chrome", "chat modal wrapper", "conversation context injection"]
+  }
+}
+```
+
+- `id` — stable finding identifier
+- `title` — plain-language title of the duplication
+- `severity` — `"high"`, `"medium"`, or `"low"`
+- `implementations[]` — duplicated locations and what they do
+  - `location` — file or directory path
+  - `description` — why this implementation exists / what is special about it
+- `sharedLogic[]` — specific duplicated logic worth extracting
+- `recommendation.action` — consolidation strategy
+- `recommendation.target` — suggested destination for shared logic
+- `recommendation.shared[]` — logic that should be extracted
+- `recommendation.keepSeparate[]` — logic that should remain implementation-specific
+
+### Dead Code metric
+
+The dead-code metric uses `metric.id = "dead-code"` and emits product-level and code-level dead-code findings. Test-only files are informational: they appear in `findings[]`, but they do **not** affect the dead-code score.
+
+```json
+{
+  "id": "dead-file-lib-old-utils",
+  "kind": "dead-file",
+  "severity": "high",
+  "target": "lib/old-utils.ts",
+  "reason": "No file in the codebase imports this file",
+  "evidence": {
+    "importers": []
+  },
+  "recommendation": {
+    "action": "remove",
+    "detail": "Delete this file — nothing imports it and it is not an entry point."
+  }
+}
+```
+
+- `id` — stable finding identifier
+- `kind` — `"dead-file"`, `"test-only-file"`, `"orphaned-surface"`, `"orphaned-feature"`, or `"dead-entity"`
+- `severity` — `"high"`, `"medium"`, or `"low"`
+- `target` — dead item identifier (file path, surface id, feature id, or entity id)
+- `reason` — plain-language explanation of why the item was flagged
+- `evidence` — kind-specific supporting evidence
+- `recommendation.action` — `"remove"` or `"review"`
+- `recommendation.detail` — concrete next step for an engineer
+
+#### Dead-code evidence shapes
+
+**`dead-file`:**
+
+```json
+{
+  "importers": []
+}
+```
+
+**`test-only-file`:**
+
+```json
+{
+  "importers": ["__tests__/utils.test.ts", "__tests__/helpers.test.ts"]
+}
+```
+
+**`orphaned-surface`:**
+
+```json
+{
+  "route": "/settings/legacy",
+  "navigationReferences": []
+}
+```
+
+**`orphaned-feature`:**
+
+```json
+{
+  "surfaceIds": ["legacy-settings"],
+  "allSurfacesOrphaned": true,
+  "implementationFiles": ["app/settings/legacy/components/feature-x.tsx"],
+  "allImplementationsDead": true
+}
+```
+
+**`dead-entity`:**
+
+```json
+{
+  "entityKind": "db-model",
+  "referencingOperations": [],
+  "referencingFeatures": [],
+  "prismaQueryCount": 0
+}
+```
 
 ## `surfaces[]`
 
@@ -307,6 +563,37 @@ Suggested core tags — the AI should use these when applicable and may create a
 - Prefer meaningful groupings over 1:1 folder mapping
 - Every non-generated file must appear in at least one compartment
 - Config/infra files go into a "Project Infrastructure" compartment
+
+## `fileTree[]`
+
+*(Experimental — fully isolated from existing data. See `specs/spec-file-tree.md` for the full spec.)*
+
+A flat array of per-file entries with AI-estimated feature weight breakdowns. Used by the Feature Map visualizer tab to render feature-composition bars next to each file and folder in the tree.
+
+```json
+{
+  "file": "app/chat/[personaSlug]/components/wizard-modal/index.tsx",
+  "featureWeights": [
+    { "featureId": "prompt-wizard", "weight": 0.7 },
+    { "featureId": "image-generation", "weight": 0.3 }
+  ]
+}
+```
+
+- `file` — relative file path from repo root
+- `featureWeights[]` — AI-estimated feature breakdown. All weights for a file must sum to 1.0
+  - `featureId` — references a feature id from `features[]`, or the special value `"__infrastructure__"` for config/shared/unassigned files
+  - `weight` — proportion (0.0–1.0)
+
+### The `__infrastructure__` pseudo-feature
+
+Files that don't belong to any product feature (config, build tooling, shared infra, generic type definitions) are assigned `"__infrastructure__"` with weight 1.0 (or partial weight if the file also serves a real feature). Rendered as neutral gray in the visualizer.
+
+### Notes
+
+- This key is **optional**. If missing, the Feature Map tab shows a "no data" message. All other tabs work normally.
+- No existing keys are modified by this feature. Removing the `fileTree` key fully removes the feature.
+- Feature weights are the AI's independent estimate — they don't need to be consistent with compartment-to-feature mappings.
 
 ## ID Convention
 

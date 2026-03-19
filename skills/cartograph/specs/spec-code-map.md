@@ -1,8 +1,8 @@
-# Code Map — Cartograph Extension Spec
+# Code Organization — Cartograph Extension Spec
 
 ## Overview
 
-A new "Code Map" tab in the Cartograph visualizer that groups the entire codebase into AI-extracted, nestable **compartments** of related code. Compartments bridge the product-side view (Surfaces, Features, Entities, Flows) with the underlying code structure, so a developer can navigate from "what does this feature do?" to "where does that code live and what else is nearby?"
+A new "Code Organization" tab in the Cartograph visualizer that groups the entire codebase into AI-extracted, nestable **compartments** of related code. Compartments bridge the product-side view (Surfaces, Features, Data Model, Flows) with the underlying code structure, so a developer can navigate from "what does this feature do?" to "where does that code live and what else is nearby?"
 
 The target user is a new engineer (or an AI agent) who already understands the product via the existing Cartograph tabs and now wants to drill into the code itself — examining health, finding shared code, and understanding coupling.
 
@@ -18,7 +18,7 @@ The target user is a new engineer (or an AI agent) who already understands the p
 
 - **Not a linter or code quality tool** — no eslint-style issue detection, no "fix this" suggestions.
 - **Not a dependency graph of individual files** — compartments group files; the dependency graph is between compartments, not files.
-- **Not a replacement for the existing tabs** — the Code Map complements Surfaces/Features/Entities/Operations/Flows; it doesn't replace them.
+- **Not a replacement for the existing tabs** — Code Organization complements Surfaces, Features, Data Model, Feature Map, Code Health, and Flows; it doesn't replace them.
 - **No runtime analysis** — compartments are determined from static analysis (file paths, imports, types, domain proximity), not from runtime behavior.
 
 ## Core Concept: Compartments
@@ -177,9 +177,9 @@ The AI also populates `compartmentIds` on features and surfaces during this phas
 
 ## Visualizer Changes
 
-### New Tab: "Code Map"
+### New Tab: "Code Organization"
 
-The Code Map tab appears after Flows in the tab bar. It has two views, toggled by a button in the tab header:
+The Code Organization tab appears in the Eng group after Data Model in the tab bar. It has two views, toggled by a button in the tab header:
 
 #### Tree View (default)
 
@@ -199,7 +199,7 @@ When a compartment is selected, the detail panel shows:
 4. **Linked Features**: List of features this compartment implements (from `featureIds`). Clicking navigates to the Features tab and selects that feature.
 5. **Linked Surfaces**: List of surfaces this compartment serves (from `surfaceIds`). Clicking navigates to the Surfaces tab and selects that surface.
 6. **Dependencies**: Two sections:
-   - "Depends on" — compartments this one imports from (from `dependsOn`). Clickable to navigate within the Code Map.
+   - "Depends on" — compartments this one imports from (from `dependsOn`). Clickable to navigate within Code Organization.
    - "Used by" — compartments that list this one in their `dependsOn` (computed from the inverse). Clickable.
 7. **"Copy as LLM context" button**: Generates a markdown block containing: compartment name, description, all file paths with roles, linked feature names, linked surface names, and dependency names.
 
@@ -209,7 +209,7 @@ A toggle button labeled "Show dependency graph" / "Show tree view" switches betw
 
 - Compartments as nodes (only top-level compartments, or all compartments — collapsible by depth).
 - Directed edges showing `dependsOn` relationships.
-- Similar interaction model to the existing Entity Map: pan, zoom, click node to see details.
+- Similar interaction model to the existing Data Model graph: pan, zoom, click node to see details.
 - Node size or color can reflect file count or tag category.
 
 ### Modified Tab: Features
@@ -217,7 +217,7 @@ A toggle button labeled "Show dependency graph" / "Show tree view" switches betw
 In the feature detail panel, the **"File map"** section is replaced with a **"Compartments"** section:
 
 - Lists compartment names (from the feature's `compartmentIds` looked up against the compartments array).
-- Each compartment name is clickable — navigates to the Code Map tab and selects that compartment.
+- Each compartment name is clickable — navigates to the Code Organization tab and selects that compartment.
 - The "Regenerate file map" prompt and related UI are removed since compartments replace per-feature file maps.
 
 If `compartmentIds` is empty (e.g., old cartograph.json without compartments), fall back to showing the existing `files` array for backwards compatibility.
@@ -227,7 +227,7 @@ If `compartmentIds` is empty (e.g., old cartograph.json without compartments), f
 In the surface detail panel, add a new **"Compartments"** section (below entities, above operations):
 
 - Lists compartment names from the surface's `compartmentIds`.
-- Each is clickable — navigates to Code Map tab.
+- Each is clickable — navigates to Code Organization tab.
 
 ### Header Stats
 
@@ -277,7 +277,7 @@ The "Copy as LLM context" button on a compartment generates markdown in this for
 - **Generated files**: Files in `generated/`, `node_modules/`, `.next/`, `dist/` should be excluded from compartments entirely (same as they're excluded from the rest of cartograph).
 - **Test files**: Test files should be placed in the same compartment as the code they test, with role "test".
 - **Files in multiple compartments**: This is expected and fine. A shared utility like `lib/prisma.ts` might appear in "Database Access" and also in "Shared Infrastructure". The visualizer should not deduplicate — each compartment shows its full file list independently.
-- **Backwards compatibility**: If `compartments` is missing from cartograph.json (old scan), the Code Map tab shows a message like "No compartment data. Re-run cartograph to generate." Features fall back to showing `files[]` if `compartmentIds` is absent.
+- **Backwards compatibility**: If `compartments` is missing from cartograph.json (old scan), the Code Organization tab shows a message like "No compartment data. Re-run cartograph to generate." Features fall back to showing `files[]` if `compartmentIds` is absent.
 
 ## JSON Schema Addition
 
@@ -307,8 +307,8 @@ Remove `files[]` population guidance from `features[]` (keep field for backwards
 ## Success Criteria
 
 1. Running cartograph produces a `compartments[]` array that covers 100% of non-generated files in the repo.
-2. The Code Map tab renders an interactive, expandable tree with working search, detail panel, and dependency links.
-3. Clicking a compartment in the Features or Surfaces tab navigates to Code Map and selects it.
+2. The Code Organization tab renders an interactive, expandable tree with working search, detail panel, and dependency links.
+3. Clicking a compartment in the Features or Surfaces tab navigates to Code Organization and selects it.
 4. Clicking a feature or surface link in a compartment's detail panel navigates to the correct tab.
 5. The dependency graph toggle shows a navigable graph of compartment relationships.
 6. "Copy as LLM context" produces usable markdown that an AI agent can act on.

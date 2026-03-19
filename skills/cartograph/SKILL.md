@@ -20,7 +20,13 @@ Extract a structural map of any TypeScript/JS web app: surfaces, features, entit
 
 ## Workflow
 
-### Phase 1: Discover Codebase Structure
+The workflow runs in **5 waves plus a parallel health pass (Wave 3.5)**. Within each wave, spawn the listed agents **in parallel**, wait for all of them to finish, then move to the next wave. Each agent should return its results as a JSON array (or arrays) matching the schema in `references/json-schema.md`. Between waves, you are the orchestrator — collect agent outputs and pass them as context to the next wave's agents.
+
+---
+
+### Wave 0: Discover Codebase Structure
+
+Run this yourself (no agent needed — it's fast and every later agent needs the results).
 
 1. Read `package.json` for project name and dependencies (framework detection)
 2. Glob for key structural files:
@@ -30,11 +36,21 @@ Extract a structural map of any TypeScript/JS web app: surfaces, features, entit
    - Components: `components/**/*.{tsx,jsx}`
    - Lib/services: `lib/**/*.{ts,js}`, `services/**/*.{ts,js}`
 3. Read the directory tree to understand the overall shape
+4. Collect the full file inventory (all non-generated files). This is the "discover bundle" — pass it to every agent in later waves.
 
-### Phase 2: Identify Surfaces
+---
+
+### Wave 1: Surfaces + Entities (parallel)
+
+Spawn **two agents in parallel**, wait for both to finish:
+
+#### Agent 1 — Surfaces
+
+Give this agent the discover bundle and ask it to identify all surfaces.
 
 Surfaces are the top-level organizational axis — self-contained entry points or standalone pieces of functionality. Each app is fundamentally a collection of surfaces.
 
+The agent should:
 1. Walk the route tree (`app/**/page.tsx`) and identify each distinct user-facing experience
 2. Group related routes into surfaces (e.g., `/create` + `/create/[id]/edit` = one "Creation Studio" surface)
 3. Look for admin-only areas, standalone tools, dashboards, and onboarding flows
@@ -42,16 +58,37 @@ Surfaces are the top-level organizational axis — self-contained entry points o
    - **Entrypoint**: main page file and route
    - **Actor**: who uses it (user/admin/system)
    - **Description**: what this surface does as a standalone experience
-5. After entities, operations, and flows are extracted, map each back to its surface(s):
-   - `entityIds`: which entities does this surface read/write?
-   - `operationIds`: which operations are triggered from this surface?
-   - `flowIds`: which flows belong to this surface?
-6. Identify entity exposure — find the limit of each entity's reach:
-   - Entities in only 1 surface are **surface-scoped** (private)
-   - Entities in 2 surfaces are **shared**
-   - Entities in 3+ surfaces are **cross-cutting** (core infrastructure)
+5. Return: a JSON array of surfaces (without `entityIds`, `operationIds`, `flowIds`, or `compartmentIds` yet — those get populated in later waves)
 
-### Phase 3: Extract Features
+#### Agent 2 — Entities + Relationships
+
+Give this agent the discover bundle (specifically the schema/type file paths) and ask it to extract all entities and relationships.
+
+**Entities** — read schema/type definitions and extract domain objects:
+1. **DB models** (high confidence) — Prisma models, TypeORM entities, Mongoose schemas
+2. **TypeScript types/interfaces** (medium confidence) — types used as API payloads, form data, state
+3. **Enums** (high confidence) — enum definitions representing domain concepts
+4. **Derived types** (medium confidence) — transformed versions (e.g., `PostWithAuthor`)
+
+For each entity: id, name, kind, description, source location, key fields (3-8 most important), confidence.
+
+**Relationships** — map connections between entities:
+1. Foreign keys and references in schema → `has-many`, `belongs-to`, `has-one`
+2. Nested includes/joins → confirms relationships
+3. Type compositions → `derives-from`
+4. Looser references → `references`
+
+Return: two JSON arrays — `entities` and `relationships`.
+
+---
+
+### Wave 2: Features + Operations (parallel)
+
+Spawn **two agents in parallel**, wait for both to finish. Pass each agent the discover bundle plus the Wave 1 outputs (surfaces, entities).
+
+#### Agent 3 — Features
+
+Give this agent the discover bundle, surfaces, and entities. Ask it to extract all features.
 
 Features are standalone capabilities embedded within surfaces. They're not pages — they're the reusable functional building blocks that surfaces compose. A surface is "where you go"; a feature is "what you can do there."
 
@@ -72,48 +109,32 @@ For each feature:
 
 Features should feel independently describable — "the like system", "the prompt wizard", "the star credit system". If you can't describe it without referencing a specific page, it's probably part of a surface, not a feature.
 
-### Separate implementations = separate features
+**Separate implementations = separate features.** The same conceptual capability often exists as independent implementations in different surfaces — for example, a user-facing "Prompt Wizard" modal in chat and an admin "Prompt Remix Wizard" panel in the post management area. Always create a separate feature entry for each distinct implementation, even when they serve the same conceptual purpose. Two implementations are separate features if they have different UI components, different actors, or different capabilities. Name them distinctly. To avoid missing these: after extracting features from one surface, scan every other surface's component tree for similar patterns and grep for shared service imports.
 
-The same conceptual capability often exists as **independent implementations** in different surfaces — for example, a user-facing "Prompt Wizard" modal in chat and an admin "Prompt Remix Wizard" panel in the post management area. These share a backend service but have entirely different UI components, actors, and capabilities.
+Return: a JSON array of features (without `compartmentIds` yet — that gets populated later).
 
-**Always create a separate feature entry for each distinct implementation**, even when they serve the same conceptual purpose. Do not collapse them into one feature with multiple `surfaceIds`. Two implementations are separate features if they have:
-- Different UI components (different component trees / directories)
-- Different actors (user vs admin)
-- Different capabilities (one has extra modes, steps, or options)
+#### Agent 4 — Operations
 
-Name them distinctly (e.g., "Prompt Wizard" vs "Admin Prompt Remix Wizard") so the developer can see both and decide whether they're related. They may share backend services — that's fine, note it in the description — but the feature entries stay separate.
-
-**To avoid missing these**: after extracting features from one surface, scan every other surface's component tree for similar patterns. Grep for shared service imports (e.g., if a user feature imports from `lib/wizard/`, check if any admin code also imports from `lib/wizard/`). This catches admin/user mirror features that are easy to overlook.
-
-### Phase 4: Extract Entities
-
-Read schema/type definitions and extract domain objects:
-
-1. **DB models** (high confidence) — Prisma models, TypeORM entities, Mongoose schemas
-2. **TypeScript types/interfaces** (medium confidence) — types used as API payloads, form data, state
-3. **Enums** (high confidence) — enum definitions representing domain concepts
-4. **Derived types** (medium confidence) — transformed versions (e.g., `PostWithAuthor`)
-
-For each entity: id, name, kind, description, source location, key fields (3-8 most important), confidence.
-
-### Phase 5: Map Relationships
-
-1. Foreign keys and references in schema → `has-many`, `belongs-to`, `has-one`
-2. Nested includes/joins → confirms relationships
-3. Type compositions → `derives-from`
-4. Looser references → `references`
-
-### Phase 6: Identify Operations
+Give this agent the discover bundle, entities, and the list of route/action/API files from discover. Ask it to identify all operations.
 
 For each entry point (route handler, server action, API endpoint):
-
 1. Which entity it targets
 2. Operation type: `create`, `read`, `update`, `delete`, or `domain`
 3. Descriptive name (e.g., "Publish Post", "Generate Preview")
 4. Side effects on other entities
 5. Implementation location (file + function)
 
-### Phase 7: Synthesize Flows
+Return: a JSON array of operations.
+
+---
+
+### Wave 3: Flows + Compartments + File Tree (parallel)
+
+Spawn **three agents in parallel**, wait for all to finish. Pass each agent the discover bundle plus all Wave 1 and Wave 2 outputs (surfaces, entities, relationships, features, operations).
+
+#### Agent 5 — Flows
+
+Give this agent all prior outputs and ask it to synthesize flows.
 
 1. Start from UI pages — what can a user do on each page?
 2. Trace: UI action → handler → service → DB
@@ -121,10 +142,15 @@ For each entry point (route handler, server action, API endpoint):
 4. Identify trigger and actor (user/admin/system)
 5. List steps in order, linking to operations and entities
 
-### Phase 8: Extract Compartments
+Return: a JSON array of flows.
+
+#### Agent 6 — Compartments
+
+Give this agent the discover bundle (especially the full file inventory), plus surfaces, features, entities, and operations. Ask it to group every non-generated file into compartments.
 
 Compartments are logical groupings of related files that form cohesive units of functionality. They bridge the product-side view (surfaces, features) with the underlying code structure, so a developer can navigate from "what does this feature do?" to "where does that code live?"
 
+The agent should:
 1. Scan the full codebase file tree, using the already-extracted surfaces, features, entities, and operations as context
 2. Group files into compartments using AI judgment based on multiple signals:
    - **Folder structure** — files in the same directory or subtree often belong together
@@ -144,28 +170,171 @@ Compartments are logical groupings of related files that form cohesive units of 
    - **featureIds**: which features this compartment implements
    - **surfaceIds**: which surfaces this compartment serves
 
-#### Compartment guidelines
+**Compartment guidelines:**
+- Don't create compartments with only 1 file unless it's a genuinely standalone module. Merge small groupings into their parent.
+- Keep top-level compartments to 8–15 for a typical web app. More sub-compartments are fine.
+- Prefer meaningful groupings over 1:1 folder mapping. If a folder contains unrelated files, split them. If related files span folders, group them.
 
-- **Don't create compartments with only 1 file** unless it's a genuinely standalone module. Merge small groupings into their parent.
-- **Keep top-level compartments to 8–15** for a typical web app. More sub-compartments are fine.
-- **Prefer meaningful groupings over 1:1 folder mapping.** If a folder contains unrelated files, split them. If related files span folders, group them.
+Return: a JSON array of compartments (without `dependsOn` yet — that gets populated in Wave 4).
 
-### Phase 9: Map Compartment Dependencies
+#### Agent 7 — File Tree Feature Weights
 
-For each compartment, examine the import statements of its files to determine which other compartments it depends on:
+*(Experimental — fully isolated from other data. See `specs/spec-file-tree.md` for the full spec.)*
 
-1. Walk the imports of every file in a compartment
+Give this agent the discover bundle (full file inventory) and the features array from Wave 2. Ask it to estimate, for every non-generated file, what percentage of the file's purpose is attributable to each feature.
+
+The agent should:
+1. Take the list of all non-generated files from the discover bundle.
+2. For each file, read the file (or a representative sample for very large files) and estimate what proportion of the file serves each feature.
+3. Files that don't belong to any product feature get `"__infrastructure__"` as their sole feature weight.
+4. Files serving multiple features get proportional weights (e.g., a shared hook → 50/50).
+5. All weights for a file must sum to 1.0.
+
+**Estimation guidance:**
+- Look at imports, function names, component names, and the overall purpose of the file.
+- A file 100% dedicated to one feature → `[{featureId: "that-feature", weight: 1.0}]`.
+- A shared utility used by multiple features → split proportionally.
+- Config files, generic type definitions, build config, middleware → `__infrastructure__`.
+- Prefer fewer features per file with higher weights over many features with tiny weights.
+
+Return: a JSON array of `{file, featureWeights: [{featureId, weight}]}` entries — one per file.
+
+---
+
+### Wave 3.5: Code Health (parallel)
+
+Spawn **three agents in parallel**, wait for all of them to finish. Pass each agent the discover bundle plus the relevant outputs from Waves 1–3.
+
+#### Agent 8 — Co-location Analysis
+
+Give this agent the discover bundle (especially the full file inventory), plus surfaces, features, compartments, and the project's co-location rules from `AGENTS.md`, `CLAUDE.md`, or equivalent repo instructions.
+
+The agent should:
+1. Read project instructions and extract explicit co-location conventions. If none are found, fall back to these universal heuristics:
+   - Files used by a single surface should live inside that surface's directory
+   - Files shared by multiple surfaces but representing one capability belong in `features/<capability>/`
+   - Root `components/`, `lib/`, and `actions/` are reserved for truly global code used by 3+ surfaces/features
+   - `components/ui/*` is always exempt and considered correctly placed
+2. Evaluate every non-generated, non-infrastructure file:
+   - Trace which files import it
+   - Determine which surfaces/features actually consume it
+   - Compare its current location to where it should live per the rules
+   - Assign a binary `pass` / `fail` verdict
+3. For each failing file, emit a concrete recommendation:
+   - `"move"` when the file should be co-located inside a surface or feature directory
+   - `"promote"` when the file should move up into `features/` because it serves multiple surfaces
+4. Compute the score as `(passing files / total evaluated files) * 100`
+
+Return: one metric object with:
+- `id: "co-location"`
+- `name`, `description`, `score`, `thresholds`, `summary`
+- `findings[]` in the co-location finding shape from `references/json-schema.md`
+
+#### Agent 9 — DRYness Analysis
+
+Give this agent the discover bundle, plus surfaces, features, entities, operations, and compartments.
+
+The agent should:
+1. Use features and compartments as the starting map of the codebase's functional areas
+2. Look for candidate duplication before reading file contents:
+   - Features with the same `kind` and overlapping `entityIds` across different surfaces
+   - Files in different surfaces with similar names or import patterns
+   - Compartments with similar descriptions, tags, or overlapping `featureIds`
+   - Hooks/actions/clients that wrap the same external API or workflow
+3. Read the candidate implementations to confirm real overlap, weighing both:
+   - **Functional overlap** — same product problem solved twice
+   - **Structural similarity** — same technical pattern repeated with light variation
+4. For each confirmed duplication finding, decide:
+   - What logic is genuinely shared
+   - What must stay implementation-specific
+   - Where the shared logic should live, respecting the project's co-location rules
+5. Compute the score with:
+   - `K = 200 / totalNonInfrastructureFiles`
+   - `score = max(0, 100 - (findingCount * K))`
+
+Return: one metric object with:
+- `id: "dryness"`
+- `name`, `description`, `score`, `thresholds`, `summary`
+- `scalingFactor`
+- `findings[]` in the DRYness finding shape from `references/json-schema.md`
+
+#### Agent 10 — Dead Code Analysis
+
+Give this agent the discover bundle, plus surfaces, features, entities, operations, and compartments.
+
+The agent should:
+1. Build an import map for every non-generated file in the discover bundle:
+   - Record which files import each file
+   - Resolve relative imports and `@/` path aliases
+2. Identify files that are always considered live entry points:
+   - `app/**/page.{ts,tsx,js,jsx}`
+   - `app/**/layout.{ts,tsx,js,jsx}`
+   - `app/api/**/*.{ts,js}`
+   - files containing a `"use server"` directive
+   - config roots such as `*.config.*`, `next.config.*`, `tailwind.config.*`, `postcss.config.*`, `tsconfig.*`, `package.json`, `.env*`, `middleware.ts`
+   - root app entry files such as `app/globals.css` and `app/manifest.ts`
+3. Detect dead files and test-only files:
+   - For each non-entry-point, non-generated file with zero importers, emit a `dead-file` finding
+   - For each non-entry-point, non-test file whose importers are all test files, emit a `test-only-file` finding
+   - Test-only files are informational and do not affect the score
+4. Detect orphaned surfaces:
+   - Search the codebase for navigation references to each surface route (`Link`, `href`, `router.push`, `router.replace`, `redirect`, nav config arrays)
+   - Emit an `orphaned-surface` finding when a surface has no inbound navigation references
+   - Exempt the root route, auth callback routes, and webhook or API-only routes
+5. Detect orphaned features:
+   - Emit an `orphaned-feature` finding when `surfaceIds` is empty or every referenced surface is orphaned
+   - Include implementation file deadness as secondary evidence when all implementation files are dead
+6. Detect dead entities:
+   - Evaluate only entities with `kind` of `"db-model"` or `"dto"`
+   - Emit a `dead-entity` finding when no operation references the entity, no feature references it, and no Prisma query references it
+   - Exempt enums from dead-entity analysis
+7. Compute the score with:
+   - `totalEvaluated = filesEvaluated + surfacesEvaluated + featuresEvaluated + entitiesEvaluated`
+   - `deadItems = deadFiles + orphanedSurfaces + orphanedFeatures + deadEntities`
+   - `score = ((totalEvaluated - deadItems) / totalEvaluated) * 100`
+   - Exclude test-only files from both numerator and denominator
+
+Return: one metric object with:
+- `id: "dead-code"`
+- `name`, `description`, `score`, `thresholds`, `summary`
+- `findings[]` in the dead-code finding shape from `references/json-schema.md`
+
+---
+
+### Wave 4: Compartment Dependencies
+
+Spawn **one agent**. Pass it the compartments array from Wave 3, plus surfaces and features from earlier waves.
+
+The agent should:
+1. Walk the imports of every file in every compartment
 2. Map each imported file to the compartment(s) it belongs to
-3. Record these as `dependsOn` edges (only inter-compartment, not self-references)
-4. Also populate `compartmentIds` on features and surfaces during this phase
+3. Record these as `dependsOn` edges on each compartment (only inter-compartment, not self-references)
+4. Populate `compartmentIds` on features — for each feature, determine which compartments implement it
+5. Populate `compartmentIds` on surfaces — for each surface, determine which compartments serve it
 
-### Phase 10: Output
+Return: the updated compartments array (with `dependsOn` populated), plus a `featureCompartmentIds` map and a `surfaceCompartmentIds` map.
 
-1. Assemble JSON following the schema in `references/json-schema.md`
-2. For every feature, set `"files": []` (empty array) and populate `"compartmentIds"` with the IDs of compartments that implement this feature. **Do NOT populate the `files` field during the initial scan.** The `compartmentIds` field is the primary code-mapping mechanism; `files` is kept for backwards compatibility.
-3. For every surface, populate `"compartmentIds"` with the IDs of compartments that serve this surface.
-4. Write `cartograph.json` to the repo root
-5. Tell the user: "Open the visualizer (`assets/visualizer.html` in this skill's directory) in your browser and load `cartograph.json` via the file picker."
+---
+
+### Wave 5: Assemble + Output
+
+Run this yourself (no agent needed). Merge all agent outputs into the final JSON:
+
+1. Take the surfaces array and populate:
+   - `entityIds`: from entities referenced in that surface's routes/pages
+   - `operationIds`: from operations triggered within that surface
+   - `flowIds`: from flows that belong to that surface
+   - `compartmentIds`: from the Wave 4 mapping
+2. Take the features array and populate:
+   - `compartmentIds`: from the Wave 4 mapping
+   - Set `"files": []` (empty array — `compartmentIds` is the primary code-mapping mechanism; `files` is kept for backwards compatibility)
+3. Include the `fileTree` array from Agent 7 as-is (no transformation needed)
+4. Add a top-level `codeHealth` object:
+   - `codeHealth.analyzedAt = ISO timestamp`
+   - `codeHealth.metrics = [coLocationMetric, drynessMetric, deadCodeMetric]`
+5. Assemble the final JSON following the schema in `references/json-schema.md`
+6. Write `cartograph.json` to the repo root
+7. Tell the user: "Open the visualizer (`assets/visualizer.html` in this skill's directory) in your browser and load `cartograph.json` via the file picker."
 
 ## Important
 
@@ -174,4 +343,5 @@ For each compartment, examine the import statements of its files to determine wh
 - **Plain language** — descriptions should be understandable by a PM
 - **Relative paths** — all file paths relative to repo root
 - **Large repos** — analyze by feature/route directory and merge
+- **Agent outputs are JSON** — each agent returns its results as JSON arrays conforming to the schema, making it easy to merge in Wave 5
 - See `references/json-schema.md` for the exact output format
