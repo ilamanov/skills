@@ -44,9 +44,15 @@ If the state is `MERGED`:
 
 **If no PR exists:** Create a new PR following the standards below.
 
-**If a PR already exists:**
+**If a PR already exists (and is OPEN):**
 
-1. Read the existing PR:
+1. Show the user the existing PR (number, title, URL) and ask for confirmation using AskUserQuestion:
+   - **Update existing PR** — push new commits to the current branch and update the PR title/description if needed
+   - **Create new branch & PR** — create a new branch from the current one, push there, and open a fresh PR
+
+2. **If the user chose "Update existing PR":**
+
+   a. Read the existing PR:
 
    ```bash
    gh pr view --json title,body,labels,number
@@ -55,19 +61,25 @@ If the state is `MERGED`:
 
    Read specific files directly rather than dumping the full diff.
 
-2. Review whether the PR content accurately reflects the current diff:
+   b. Review whether the PR content accurately reflects the current diff:
    - Does the title follow semantic format?
    - Does the description accurately describe all commits?
    - Is the test plan still accurate?
    - Are the release notes complete?
 
-3. Update if needed:
+   c. Update if needed:
 
    ```bash
    gh pr edit <number> --title "new title" --body "new body"
    ```
 
-4. Push any new commits (regular push, not force push)
+   d. Push any new commits (regular push, not force push)
+
+3. **If the user chose "Create new branch & PR":**
+
+   a. Create a new branch from the current HEAD with a descriptive name based on the user's notes or the staged changes
+   b. Push the new branch to the remote
+   c. Create a new PR following the standards below
 
 ## Step 3: Link related issues
 
