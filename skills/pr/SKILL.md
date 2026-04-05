@@ -35,7 +35,9 @@ If the state is `MERGED`:
 ## Step 1: Prepare the branch
 
 1. If on main, create a new branch with a descriptive name
-2. Commit all changes (except API keys or explicitly private content)
+2. Check for staged changes (`git diff --cached --stat`):
+   - **If there are staged changes:** commit only the staged changes (do NOT `git add` anything else)
+   - **If nothing is staged:** stage and commit all changes (except API keys or explicitly private content)
 3. Push changes to the remote
 
 ## Step 2: Create or update the PR
