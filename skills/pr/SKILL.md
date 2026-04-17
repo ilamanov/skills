@@ -182,6 +182,12 @@ Include when changes affect `api-report.md`:
 - Breaking! Removed `Editor.oldMethod()`
 ```
 
+## PR readiness
+
+- Default to opening the PR as **ready for review**
+- Use a **draft PR** only when the changed area is failing verification, incomplete, blocked, or otherwise not actually ready for review
+- If only unrelated or clearly flaky verification failures remain, still open the PR as ready for review and explicitly call out the residual risk in the PR body
+
 ## Important
 
 - Never include AI attribution ("Generated with Claude Code", "Co-Authored-By: Claude", etc.) in commits, PR titles, or descriptions
