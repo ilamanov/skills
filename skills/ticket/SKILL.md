@@ -55,7 +55,7 @@ This skill is the **upstream pair** of the `ship` skill: the issues it creates a
 
 4. **Show the draft** in chat with title, body, team, project, labels, priority. **Wait for explicit approval.** Edit and re-show on requested changes.
 
-5. **Create** the issue via the Linear MCP. Report back the issue ID and URL.
+5. **Create** the issue via the Linear MCP. Then post the **user's original request verbatim** as the first comment on the new ticket — this preserves what the user asked for in their own words, separate from the polished description. Don't paraphrase, summarize, or trim it; copy the request exactly as the user wrote it (in a fenced quote block if it contains markdown that would render oddly). Report back the issue ID and URL.
 
 ## Rules
 
