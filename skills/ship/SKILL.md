@@ -23,7 +23,7 @@ The agent never advances past these without explicit user confirmation ("yes", "
 
 | #   | Gate                  | When                                                                    |
 | --- | --------------------- | ----------------------------------------------------------------------- |
-| 1   | Task selection        | Before reading the ticket                                               |
+| 1   | Task selection        | Only when the ticket is ambiguous or conflicts (Step 1)                 |
 | 2   | Plan approval         | Only when the ticket asks for it (Step 2)                               |
 | 3   | Stack breakup         | Always, after implementation, before splitting into the stack (Step 5b) |
 | 4   | Review-finding triage | Before fixing each round of findings                                    |
@@ -86,7 +86,13 @@ Either way, **filter conflicts** before settling on the ticket:
 - Scope overlap with any other Linear issue currently `In Progress` / `In Review`.
 - Overlap with any **non-stale** open PR — `gh pr list --state open --json number,title,updatedAt,headRefName,labels`. Stale = no commits in ~14 days; treat stale PRs as abandoned.
 
-If conflicts are present or the choice is ambiguous, present 3–5 candidates with one-line summaries and wait for the user to pick. Otherwise confirm the chosen ticket once with the user before proceeding.
+**Only stop for user input when there's genuine ambiguity.** If the user named a specific ticket and no blocking conflicts surfaced, **proceed directly to Step 2** — don't ask for redundant confirmation. Stop only when:
+
+- No ticket was specified, or
+- The user's phrase matches more than one candidate, or
+- The chosen ticket has a real conflict (unfinished dependency, scope overlap with an in-flight ticket, or a non-stale open PR on the same area).
+
+In any of those cases, present 3–5 candidates with one-line summaries (or surface the specific conflict) and wait for the user to pick or resolve.
 
 ## Step 2 — Read ticket; decide path
 
