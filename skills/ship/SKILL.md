@@ -159,7 +159,7 @@ The review agent runs **remotely on the PR** — it's a GitHub-side bot that rea
 
 The active review agent for this project is **Codex** — the agent-specific bindings (latency, author name, retrigger command) live inside the loop below. To swap in a different review agent later, change only those bindings.
 
-Submit the stack via Graphite — one PR per branch. PR creation auto-triggers a review on each new PR.
+Submit the stack via Graphite — one PR per branch, each opened as **ready for review** (not draft). Only fall back to draft if the user explicitly asks, or if something genuinely blocks the PR from being reviewable (e.g. a known-broken intermediate state the user wants to share for context). PR creation auto-triggers a review on each new PR.
 
 For **each PR** (bottom-up), run this loop until either the review agent returns no actionable findings **or** the user gives a merge signal (Step 7) — whichever comes first:
 
@@ -182,8 +182,9 @@ For **each PR** (bottom-up), run this loop until either the review agent returns
 
    When in doubt, lean toward Skip. The goal is to fix real bugs, not gold-plate the code.
 
-5. **Show triage to user — cumulative queue.** Each watcher-fired message renders the running queue of findings the user still needs to look at, plus a per-PR review status. Specifically:
-   - **Per-PR review status** at the top of the message: for each PR in the stack, one of `clean` (review agent reacted 👍 on the PR body), `findings: N` (with N open valid findings carried forward), `awaiting review`, or `re-review pending` (after a retrigger).
+5. **Show triage to user — cumulative queue.** Each watcher-fired message renders the running queue of findings the user still needs to look at, plus a per-PR review status. Lead the message with enough context that the user understands what they're looking at without digging for PR links:
+   - **Context header** at the very top of the message: the ticket id + title, a one-line summary of what this stack is shipping, and a compact list of the PRs in the stack (slug + URL). The user shouldn't need to open anything to recall the scope.
+   - **Per-PR review status** next: for each PR in the stack, one of `clean` (review agent reacted 👍 on the PR body), `findings: N` (with N open valid findings carried forward), `awaiting review`, or `re-review pending` (after a retrigger).
    - **Valid findings (proposed Fix)** that the user hasn't yet triaged or addressed: show them. Carry them forward in every subsequent message until the user says Fix-it / Skip-it / acknowledged. Once addressed, drop from the queue.
    - **Skip findings (nits, false positives, overly defensive, etc.)**: show **once** when first discovered, with a one-line reason. Don't accumulate them across messages.
    - Group new-this-round vs. carried-over for clarity. Each entry: PR + file:line, one-line summary, proposed Fix/Skip + reason, source link.
