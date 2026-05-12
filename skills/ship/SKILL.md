@@ -21,13 +21,12 @@ If any is missing, stop and ask.
 
 The agent never advances past these without explicit user confirmation ("yes", "approved", "merge", etc.). Permission does not carry over between gates.
 
-| #   | Gate                  | When                                                                    |
-| --- | --------------------- | ----------------------------------------------------------------------- |
-| 1   | Task selection        | Only when the ticket is ambiguous or conflicts (Step 1)                 |
-| 2   | Plan approval         | Only when the ticket asks for it (Step 2)                               |
-| 3   | Stack breakup         | Always, after implementation, before splitting into the stack (Step 5b) |
-| 4   | Review-finding triage | Before fixing each round of findings                                    |
-| 5   | Merge                 | Always, before merging any PR in the stack                              |
+| #   | Gate           | When                                                                    |
+| --- | -------------- | ----------------------------------------------------------------------- |
+| 1   | Task selection | Only when the ticket is ambiguous or conflicts (Step 1)                 |
+| 2   | Plan approval  | Only when the ticket asks for it (Step 2)                               |
+| 3   | Stack breakup  | Always, after implementation, before splitting into the stack (Step 5b) |
+| 4   | Merge          | Always, before merging any PR in the stack                              |
 
 ## Progress checklist
 
@@ -182,16 +181,15 @@ For **each PR** (bottom-up), run this loop until either the review agent returns
 
    When in doubt, lean toward Skip. The goal is to fix real bugs, not gold-plate the code.
 
-5. **Show triage to user — cumulative queue.** Each watcher-fired message renders the running queue of findings the user still needs to look at, plus a per-PR review status. Lead the message with enough context that the user understands what they're looking at without digging for PR links:
-   - **Context header** at the very top of the message: the ticket id + title, a one-line summary of what this stack is shipping, and a compact list of the PRs in the stack (slug + URL). The user shouldn't need to open anything to recall the scope.
-   - **Per-PR review status** next: for each PR in the stack, one of `clean` (review agent reacted 👍 on the PR body), `findings: N` (with N open valid findings carried forward), `awaiting review`, or `re-review pending` (after a retrigger).
-   - **Valid findings (proposed Fix)** that the user hasn't yet triaged or addressed: show them. Carry them forward in every subsequent message until the user says Fix-it / Skip-it / acknowledged. Once addressed, drop from the queue.
-   - **Skip findings (nits, false positives, overly defensive, etc.)**: show **once** when first discovered, with a one-line reason. Don't accumulate them across messages.
-   - Group new-this-round vs. carried-over for clarity. Each entry: PR + file:line, one-line summary, proposed Fix/Skip + reason, source link.
+5. **Triage autonomously and report — no user gate.** The agent decides Fix vs. Skip on each finding itself and proceeds to fix the valid ones (point 6) without waiting for confirmation. A status message is still posted so the user has visibility and can interject if they disagree. Format:
+   - **Context header** at the very top: ticket id + title, a one-line summary of what this stack is shipping, and a compact list of the PRs (slug + URL). The user shouldn't need to open anything to recall the scope.
+   - **Per-PR review status**: for each PR, one of `clean` (review agent reacted 👍 on the PR body), `findings: N` (with N findings to address this round), `awaiting review`, or `re-review pending` (after a retrigger).
+   - **Findings this round** with the agent's autonomous Fix/Skip decision + one-line reason + source link. New-this-round and carried-over both shown for clarity. Skip findings appear once and are not carried forward.
+   - **Next action**: "fixing the N valid findings now and retriggering review" (or "no actionable findings — waiting for next watcher tick").
 
-   **Wait for the user's call** before fixing.
+   Don't wait — proceed straight to point 6. The user can still short-circuit the whole loop at any time via a chat merge signal or a GitHub `APPROVED` review (see Step 7).
 
-6. **Fix approved findings** on the relevant branch as **separate commits**, not amends. Each round of fixes should land as a new commit on the existing PR branch so the review history is preserved (reviewers can see exactly which commit responded to which round of feedback). Don't fold the fix into the original commit. Use whatever Graphite-aware flow keeps the new commit as its own commit on the branch — the Graphite skill knows the current commands.
+6. **Fix the valid findings** (those the agent classified as Fix in point 5) on the relevant branch. **Each finding gets its own commit** — don't batch multiple finding fixes into a single commit, and don't amend into prior commits. One finding → one focused commit with a message that references the finding it addresses. After each commit, push (don't force-push aside from what Graphite does for restacking). Use whatever Graphite-aware flow preserves the per-finding commit granularity — the Graphite skill knows the current commands.
 7. **Retrigger the review** (most agents only auto-review the first push). For Codex:
    ```bash
    gh pr comment <num> --body "@codex review"
