@@ -25,7 +25,7 @@ The agent never advances past these without explicit user confirmation ("yes", "
 | --- | -------------- | ----------------------------------------------------------------------- |
 | 1   | Task selection | Only when the ticket is ambiguous or conflicts (Step 1)                 |
 | 2   | Plan approval  | Only when the ticket asks for it (Step 2)                               |
-| 3   | Stack breakup  | Always, after implementation, before splitting into the stack (Step 5b) |
+| 3   | Stack breakup  | Always, after implementation, before splitting into the stack (Step 5c) |
 | 4   | Merge          | Always, before merging any PR in the stack                              |
 
 ## Progress checklist
@@ -38,8 +38,9 @@ Copy this into the response and tick as work progresses:
 - [ ] 3. Plan (if required) — approved
 - [ ] 4. Worktree + branch
 - [ ] 5a. Implement end-to-end on the working branch (no stack yet)
-- [ ] 5b. Review the full diff; propose stack breakup — approved
-- [ ] 5c. Split the implemented changes into the Graphite stack
+- [ ] 5b. Deslop the working tree
+- [ ] 5c. Review the full diff; propose stack breakup — approved
+- [ ] 5d. Split the implemented changes into the Graphite stack
 - [ ] 6. Submit stack; review loop per PR until clean or user-approved
 - [ ] 7. User merge signal → generate migrations; merge bottom-up
 - [ ] 8. Linear → Done; clean up worktree; report
@@ -53,7 +54,7 @@ Post a short comment to the Linear ticket via the Linear MCP at each milestone b
 | ----------------------------------- | ---------------------------------------------------- |
 | Work started (Step 4)               | branch + worktree created; "starting implementation" |
 | Plan posted (Step 3, if applicable) | link or paste of the plan, awaiting approval         |
-| Stack breakup approved (Step 5b)    | the approved breakup                                 |
+| Stack breakup approved (Step 5c)    | the approved breakup                                 |
 | Stack submitted (Step 6)            | list of PR URLs                                      |
 | Review round complete (Step 6)      | "round N: X findings, Y fixed, Z skipped" + outcome  |
 | Merge complete (Step 7)             | merged PR URLs in order                              |
@@ -104,7 +105,7 @@ Apply the Step 2 status transition (see table above).
 
 ## Step 3 — Plan (only if required)
 
-Post a concise, high-level plan of **how the feature will be implemented**: the approach, the major steps to take, key technical decisions, anything ambiguous in the ticket that needs the user's call, and how it'll be verified. Do **not** break it into PRs here — the stack breakup happens later in Step 5b after reading the code.
+Post a concise, high-level plan of **how the feature will be implemented**: the approach, the major steps to take, key technical decisions, anything ambiguous in the ticket that needs the user's call, and how it'll be verified. Do **not** break it into PRs here — the stack breakup happens later in Step 5c after reading the code.
 
 Wait for explicit approval before proceeding.
 
@@ -128,7 +129,15 @@ Read affected code as needed and implement the full feature on the single workin
 
 **Hold migrations.** Don't generate migration files yet (Prisma `migrate dev`, Drizzle `drizzle-kit generate`, Rails `db:migrate`, Django `makemigrations`, etc.). Schema source files (`prisma/schema.prisma`, `db/schema.ts`, etc.) can change freely; numbered migrations are generated at merge time (Step 7) so they don't collide with parallel work.
 
-### 5b. Review the full diff; propose stack breakup (gate)
+### 5b. Deslop the working tree (only if the `deslop` skill is present)
+
+If a `deslop` skill is available, run it against the working tree before reviewing the diff or splitting the stack. It removes AI-generated code patterns (unnecessary comments, defensive overkill, type escape hatches, single-use variables, separate prop interfaces, style drift) so reviewers see clean code on the first push instead of patterns that will inevitably show up as review-agent findings later. Cleaning here once is cheaper than fixing the same things across N PRs in the review loop.
+
+Re-run lint/typecheck/tests after deslop in case the cleanup touched anything that needs verification.
+
+If the skill isn't installed in this environment, skip this step — don't attempt to deslop manually, and don't block the workflow on it.
+
+### 5c. Review the full diff; propose stack breakup (gate)
 
 Inspect the working-tree diff against `main` (e.g. `git diff main --stat`, then read the changes including untracked files via `git status`). Group similar functionality into a thorough-but-concise stack proposal the user can read in seconds. One bullet per branch, in stack order. Each: branch slug, one-line summary, scope (small/medium), key files. Pattern: refactors → scaffolding → behavior → UI → tests.
 
@@ -143,13 +152,13 @@ Inspect the working-tree diff against `main` (e.g. `git diff main --stat`, then 
 
 Wait for explicit approval. The user may split, merge, or reorder — adjust and re-show. No splitting begins until approved.
 
-### 5c. Split the implementation into the Graphite stack
+### 5d. Split the implementation into the Graphite stack
 
-Replay the working-tree changes onto a clean Graphite stack so each branch contains exactly the slice approved in 5b:
+Replay the working-tree changes onto a clean Graphite stack so each branch contains exactly the slice approved in 5c:
 
 1. **Preserve the implemented end state first** — the implementation is uncommitted and losing it costs the whole feature. Simplest options: `git stash --include-untracked`, or make a single snapshot commit on a parked branch (e.g. `git checkout -b <branch>-snapshot && git add -A && git commit -m "snapshot"` then return to the working branch).
 2. **Reset back to `main`** and build the stack branch by branch via Graphite. For each branch, apply only the slice of the diff that belongs on that branch (e.g. selective patch application from the snapshot).
-3. **Each branch must pass lint/typecheck/tests on its own**, with its parent branch in the stack as the base (not `main`). Each PR is reviewed and CI'd against its parent — Graphite restacks children onto `main` only as parents merge. So slice the work so every branch is self-contained relative to the stack: types, scaffolding, and dependencies introduced before the code that uses them. **Don't use `--no-verify`** — if a branch can't pass hooks, the slice is wrong; rework the breakup. This may mean re-proposing 5b to the user.
+3. **Each branch must pass lint/typecheck/tests on its own**, with its parent branch in the stack as the base (not `main`). Each PR is reviewed and CI'd against its parent — Graphite restacks children onto `main` only as parents merge. So slice the work so every branch is self-contained relative to the stack: types, scaffolding, and dependencies introduced before the code that uses them. **Don't use `--no-verify`** — if a branch can't pass hooks, the slice is wrong; rework the breakup. This may mean re-proposing 5c to the user.
 4. **Confirm equivalence at the end.** The cumulative diff of the top branch against `main` must match the preserved end state exactly: `git diff <top-branch> <snapshot>` should be empty. If it isn't, the split is wrong — fix before submitting.
 
 ## Step 6 — Submit stack; review loop
