@@ -85,6 +85,17 @@ If the state is `MERGED`:
 
 Search for related issues and link them using `Closes #123` or `Relates to #123`.
 
+## When paired with fix-pr-reviews
+
+If the user invokes this skill together with `fix-pr-reviews`, finish the PR creation/update first, then immediately hand off to the review-finding workflow for the resulting PR:
+
+1. Create or update the PR and push the branch as this skill normally requires.
+2. Start or refresh the PR review watcher for that PR immediately, even if there are no review comments yet.
+3. Fetch and triage the current PR review streams once.
+4. Keep checking for new or changed findings through the watcher while the PR is open.
+
+Do not wait for review findings or review fixes before creating the watcher in the combined workflow.
+
 ## Handling problems
 
 Committing automatically runs the linter. Fix any lint/type errors unless they require meaningful code changes—in that case, notify the user:

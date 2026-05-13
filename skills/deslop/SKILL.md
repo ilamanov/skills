@@ -1,42 +1,24 @@
 ---
 name: deslop
-description: Remove AI-generated code slop from the current branch. Use when the user says "deslop" or asks to clean up AI slop, remove AI code patterns, or clean the branch before committing.
+description: Remove AI-generated code slop and clean up code style
 ---
 
-# Deslop
+# Remove AI code slop
 
-Remove AI-generated code patterns from all changes in the current branch.
+Check the diff against main and remove AI-generated slop introduced in the branch.
 
-## Process
+## Focus Areas
 
-1. Run `git diff main` to get all changes
-2. For each changed file, read the full file to understand existing style
-3. Identify and remove slop patterns (see below), matching the file's existing style
-4. Report a 1-3 sentence summary of changes
-
-## Slop Patterns
-
-Remove these when inconsistent with the surrounding code:
-
-- **Unnecessary comments** - Comments a human wouldn't add or that don't match the file's commenting style
-- **Defensive overkill** - Extra try/catch blocks, null checks, or validation that's abnormal for that area (especially on trusted/validated codepaths)
-- **Type escape hatches** - Casts to `any` to bypass type issues
+- **Unnecessary comments** - Extra comments that are unnecessary or inconsistent with local style
+- **Defensive overkill** - Defensive checks or try/catch blocks that are abnormal for trusted code paths
+- **Type escape hatches** - Casts to `any` used only to bypass type issues
+- **Deep nesting** - Deeply nested code that should be simplified with early returns
 - **Single-use variables** - Variables used once immediately after declaration; inline the RHS instead
 - **React prop interfaces** - Separate `interface Props` definitions; inline the props type directly
-- **Style drift** - Any formatting, naming, or patterns inconsistent with the file
+- **Style drift** - Other patterns inconsistent with the file and surrounding codebase
 
-## Style Matching
+## Guardrails
 
-Before editing, study the unchanged code in each file:
-
-- Comment density and style
-- Error handling patterns
-- Variable naming conventions
-- Type annotation style
-- Component patterns (for React)
-
-Only flag something as slop if it deviates from the file's established patterns.
-
-## Output
-
-End with only a 1-3 sentence summary of what was changed. No detailed lists.
+- Keep behavior unchanged unless fixing a clear bug.
+- Prefer minimal, focused edits over broad rewrites.
+- Keep the final summary concise (1-3 sentences).
