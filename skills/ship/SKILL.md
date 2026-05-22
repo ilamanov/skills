@@ -173,7 +173,19 @@ For **each PR** (bottom-up), run this loop until either the review agent returns
 
 1. **Wait for the review** to post. Latency is agent-specific — for Codex, ~6–7 min is typical. If the harness exposes a periodic-watcher mechanism (recurring scheduled check, polling loop, cron-style wake), set one up to fetch the PR's comments at that cadence and surface anything new from the review agent or from a user PR review/approval (Step 7). Otherwise fall back to a single delayed wake (e.g. `ScheduleWakeup` at ~400s, kept under the prompt-cache TTL) and re-arm after each fetch. The watcher should also catch a user `APPROVED` review submitted at any time, so the agent reacts to a merge signal without the user having to repeat it in chat.
 
-   **Watcher lifecycle:** create the watcher once, when the stack is first submitted in Step 6. Keep it running across all PRs and rounds. **Tear it down** as soon as the loop terminates — i.e. when every PR in the stack is clean (no open findings + 👍 from the review agent or user approval) **or** the user has given a merge signal (Step 7), and the agent is moving on to merge / cleanup. Also tear it down on any abnormal exit (user cancels, error path) so it doesn't keep firing in the background.
+   **Watcher lifecycle:** create the watcher once when the stack is first submitted, and keep it running across all PRs and rounds.
+
+   **Per-PR done condition.** A PR is considered "done" for the watcher when any of:
+   - It has been merged (no longer in the open set), or
+   - It is clean: review agent has reacted 👍 on the PR body **and** every finding raised so far has been resolved (fixed and pushed, or explicitly skipped), with no new findings on the most recent re-review.
+
+   **Tear down the watcher** when **all** PRs in its scope hit a done condition (the conjunction must hold across every PR being watched — not just one). Whenever a single PR becomes done, narrow the watcher's scope to drop that PR but keep watching the rest; only stop the watcher entirely when nothing is left to watch.
+
+   Also tear it down immediately if:
+   - The user gives a merge signal in chat or via a GitHub `APPROVED` review (Step 7) — the merge step takes over.
+   - The workflow exits abnormally (user cancels, error path) — so the watcher doesn't keep firing in the background.
+
+   Never leave a watcher running after the workflow has finished or moved on to merge/cleanup.
 
 2. **Fetch comments and PR-description reactions**:
    ```bash
