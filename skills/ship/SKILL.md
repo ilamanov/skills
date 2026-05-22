@@ -39,9 +39,10 @@ Copy this into the response and tick as work progresses:
 - [ ] 4. Worktree + branch
 - [ ] 5a. Implement end-to-end on the working branch (no stack yet)
 - [ ] 5b. Deslop the working tree
-- [ ] 5c. Review the full diff; propose stack breakup — approved
+- [ ] 5c. Review the full diff; generate the draft-brief; propose stack breakup — approved
 - [ ] 5d. Split the implemented changes into the Graphite stack
 - [ ] 6. Submit stack; review loop per PR until clean or user-approved
+- [ ] 6e. Review complete → generate the final-brief
 - [ ] 7. User merge signal → generate migrations; merge bottom-up
 - [ ] 8. Linear → Done; clean up worktree; report
 ```
@@ -150,6 +151,10 @@ Inspect the working-tree diff against `main` (e.g. `git diff main --stat`, then 
 4. `<agent>/feed-pagination-ui` (medium) — wire infinite scroll + tests. Files: `app/feed/feed.tsx`, `__tests__/feed.test.tsx`.
 ```
 
+**Generate the visual brief for the gate.** Before asking for approval, invoke the `draft-brief` skill if it's installed. It reads the working-tree diff and the stack proposal above (already in context) and produces a visual HTML one-pager — high-stakes changes (new endpoints, auth, schema) first, schema walked line by line — that a busy reviewer can approve from quickly.
+
+Always include the full stack proposal as text in the response itself, whether or not the brief was generated — the brief is a supplement, not a replacement. The user should be able to read the proposed stack inline without opening the brief. When `draft-brief` is installed, also give them the brief's path. Either way, the approval gate stands.
+
 Wait for explicit approval. The user may split, merge, or reorder — adjust and re-show. No splitting begins until approved.
 
 ### 5d. Split the implementation into the Graphite stack
@@ -217,6 +222,10 @@ For **each PR** (bottom-up), run this loop until either the review agent returns
    ```
 
 If a finding spans multiple PRs, fix on the lowest PR that owns the code so children inherit it when the stack is restacked and resubmitted.
+
+### 6e. Review complete — generate the final brief
+
+Once every watched PR is review-complete and the watcher has been torn down (see the watcher lifecycle above), and the user has not already given a merge signal, invoke the `final-brief` skill if it's installed. It reads the final commit history, the cumulative diff against `main`, and the review threads, and produces a visual HTML one-pager — final code state with high-stakes surface area first, a walkthrough of the key functions, and a map of which commits addressed which review findings — for the user's pre-merge pass. Give the user the brief's path, then wait at the Step 7 merge gate. If the user already gave a merge signal, skip straight to Step 7. If `final-brief` isn't installed, skip this step.
 
 ## Step 7 — Merge (gate)
 
