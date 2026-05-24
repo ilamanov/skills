@@ -12,8 +12,9 @@ The goal is continuous, evidence-based skill improvement. Every time something g
 ## Required tools
 
 - `git` and `gh` (GitHub CLI, authenticated) — for branch + PR creation
-- `python3` — runs the conversation puller
+- `python3` — runs the conversation puller and the brief discovery script
 - Read access to `~/.codex/sessions/`, `~/.codex/archived_sessions/`, and `~/.claude/projects/`
+- Read access to the `.briefs/` directory inside each configured project root (and its worktrees) — this is where the `brief` skill writes its HTML artifacts
 
 If any are missing, stop and ask.
 
@@ -34,7 +35,7 @@ If any are missing, stop and ask.
 }
 ```
 
-The `state/state.json` file holds a per-project, per-source `started_at` cursor so each run only analyzes what's new since the last run.
+The `state/state.json` file holds a per-project, per-source `started_at` cursor so each run only analyzes what's new since the last run. A separate `state/briefs-state.json` file holds the per-project mtime cursor for `.briefs/*.html` artifacts (see Step 3b) — kept apart because briefs are a different cadence and source from conversations and bundling them muddies both cursors.
 
 The `skills` project is configured as one of the targets — this is intentional. The skill audits its own runs and proposes its own edits.
 
@@ -139,6 +140,47 @@ For every tagged moment, record:
 
 `skill_in_use` is usually the skill named in the first user prompt (`$ship`, `$ticket`, etc.). If no skill was invoked, attribute to `(none)` — those findings may become *new* skills or process improvements rather than edits to existing skills.
 
+### Step 3b — Audit recent brief artifacts
+
+The `brief` skill produces visual HTML one-pagers in each project's `.briefs/` directory. Those artifacts are direct, durable evidence of how well the skill is performing — much higher signal than reading transcripts about brief generation. This step audits each new brief against the skill's own self-check list and surfaces failures as findings, attributed to `skill_in_use: brief`.
+
+```bash
+python3 "$SKILL_DIR/scripts/list_briefs.py" > /tmp/skill-improver-briefs.jsonl
+```
+
+The script reads `state/briefs-state.json` and emits one JSON object per `.briefs/*.html` file that is newer than the per-project cursor, oldest first. First-run window defaults to 14 days (briefs are generated less often than conversations, so a wider window is fine).
+
+Useful flags mirror the conversation puller: `--since`, `--project`, `--mode draft|final`, `--limit N`, `--update-state` (advance the cursor — only pass on success).
+
+**For each new brief, open the HTML file and check it against the rules in [skills/brief/SKILL.md](../brief/SKILL.md)'s "Step 6 — Save, open, and self-check" section.** That self-check list is the source of truth for what a good brief looks like; this audit is just running it across recent real outputs. Concretely, look for:
+
+- Hero TL;DR longer than two sentences, or padded into a narrative paragraph.
+- Mode pill missing or too visually subtle to disambiguate DRAFT from FINAL at a glance.
+- PR Stack section missing entirely (even for a single PR), or buried below high-stakes callouts / code tour / file index.
+- Section order deviating from the prescribed sequence (Hero → PR Stack → High-stakes → Endpoint Audit → Schema → Code Tour → PR Evolution → File Index).
+- Code Tour section that is prose-only — no `<pre><code>` blocks, no inline diff or source snippets.
+- Schema changes summarized in prose instead of walked line by line in a table.
+- (FINAL) Follow-up commits in PR Evolution that aren't tagged with a cause (review finding / user steering / other), or skipped review findings not surfaced in a warning-colored row.
+- Tour stops totaling 8+ without a sticky tour TOC.
+
+Tag findings the same way as conversation findings, but with a brief-specific shape:
+
+```
+{
+  "source": "brief-audit",
+  "project": "...",
+  "skill_in_use": "brief",
+  "brief_path": "<absolute html path>",
+  "mode": "draft | final",
+  "mtime": "...",
+  "rule_violated": "<short name of the self-check rule, e.g. 'PR stack buried'>",
+  "evidence": "<what you observed — e.g. 'PR Stack appears as section 6, after Code Tour'>",
+  "proposed_change": "<concrete edit to skills/brief/SKILL.md, in skill-author voice>"
+}
+```
+
+The same clustering bar in Step 4 applies: a single off-template brief is noise; **two or more independent instances of the same rule violation** are the threshold for a skill edit. If the same violation shows up across multiple projects, that's especially strong signal that the rule isn't getting through and needs sharper wording.
+
 ### Step 4 — Cluster findings by skill and decide what's worth a code change
 
 Group all findings by `skill_in_use`. For each skill:
@@ -191,20 +233,26 @@ Scope rules:
 - Edit only `SKILL.md` files unless a finding clearly justifies a script or reference file change.
 - Don't touch unrelated skills. Don't bundle drive-by cleanup with the improvement edits — keep the diff focused on the evidence.
 
-### Step 5b — Advance the cursor (before commit)
+### Step 5b — Advance the cursors (before commit)
 
-The cursor lives in the tracked file `skills/skill-improver/state/state.json` and must persist across runs on `main`. The only way to land it without pushing to `main` directly is to include it in the same PR as the rest of the run. So advance it **before** committing in Step 6 — never leave it dirty in the working tree.
+Two cursors persist across runs on `main` and both live in tracked files:
+
+- `skills/skill-improver/state/state.json` — conversation cursor (per-project, per-source `started_at`)
+- `skills/skill-improver/state/briefs-state.json` — brief-artifact cursor (per-project `last_mtime`)
+
+The only way to land them without pushing to `main` directly is to include them in the same PR as the rest of the run. So advance both **before** committing in Step 6 — never leave them dirty in the working tree.
 
 ```bash
 python3 "$SKILL_DIR/scripts/list_conversations.py" --update-state > /dev/null
+python3 "$SKILL_DIR/scripts/list_briefs.py" --update-state > /dev/null
 ```
 
-This idempotently advances `state/state.json` to the newest `started_at` per project/source seen in this batch. The resulting working-tree change is part of the commit in Step 6.
+Each script idempotently advances its own state file to the newest value per project seen in this batch. The resulting working-tree changes are part of the commit in Step 6.
 
-**If the run aborts before Step 6** (push rejected, gh error, etc.), discard the state.json change so the next run re-analyzes the same batch:
+**If the run aborts before Step 6** (push rejected, gh error, etc.), discard both state changes so the next run re-analyzes the same batch:
 
 ```bash
-git checkout -- skills/skill-improver/state/state.json
+git checkout -- skills/skill-improver/state/state.json skills/skill-improver/state/briefs-state.json
 ```
 
 ### Step 6 — Open one PR per run
@@ -219,7 +267,7 @@ git commit -m "skill-improver: findings from run $(date -u +%Y-%m-%d)"
 git push -u origin HEAD
 gh pr create --title "skill-improver: $(date -u +%Y-%m-%d) findings" --body "$(cat <<'EOF'
 ## Summary
-<one paragraph: how many conversations analyzed, how many findings, which skills touched, plus whether any external meta-skill was updated this run>
+<one paragraph: how many conversations analyzed, how many briefs audited, how many findings, which skills touched, plus whether any external meta-skill was updated this run>
 
 ## External meta-skill updates
 <only if Step 0 produced changes; one bullet per updated meta-skill>
@@ -228,23 +276,34 @@ gh pr create --title "skill-improver: $(date -u +%Y-%m-%d) findings" --body "$(c
 These changes come from `npx skills update` and are bundled here so the user has a single review surface. They are not analysis-driven edits.
 
 ## Changes from conversation analysis
-For each skill edited:
+For each skill edited based on conversation findings:
 
 ### skills/<name>/SKILL.md
 **Why:** <pattern observed — how many times, across which projects>
 **Evidence:**
-- [<conversation file path>](<no-link, just the path>) — "<verbatim quote>"
-- [<...>] — "<...>"
+- <conversation file path> — "<verbatim quote>"
+- <...> — "<...>"
 **Change:** <what the edit does and why it should prevent the pattern>
 
+## Changes from brief audit
+<only if Step 3b produced edits to skills/brief/SKILL.md>
+
+### skills/brief/SKILL.md
+**Why:** <self-check rule violated — how many briefs, across which projects/modes>
+**Evidence:**
+- <brief html path> (mode) — <what was observed>
+- <...> — <...>
+**Change:** <what the edit does and why it should make the rule land>
+
 ## Considered but not changed
-<findings that didn't meet the bar for an edit — one bullet each, with reason>
+<findings that didn't meet the bar for an edit — one bullet each, with reason. Include both conversation and brief findings here.>
 
 ## Skipped conversations
 <count of skipped trivial/automation conversations>
 
-## Cursor
-Advanced state cursor for: <project[/source] list with new timestamps>
+## Cursors
+Advanced conversation cursor for: <project[/source] list with new timestamps>
+Advanced brief cursor for: <project list with new mtimes>
 
 🤖 Generated by skill-improver
 EOF
@@ -268,8 +327,9 @@ No analysis-driven edits this run (<one sentence on why — empty batch / no pat
 **Why this skill:** <one sentence — e.g. "470 lines, +180 from skill-improver runs over the last 3 months, dense MUST stacks in Step 3">
 <paste the full report skill-cleaner returned>
 
-## Cursor
-Advanced state cursor for: <project[/source] list with new timestamps>
+## Cursors
+Advanced conversation cursor for: <project[/source] list with new timestamps>
+Advanced brief cursor for: <project list with new mtimes>
 
 🤖 Generated by skill-improver
 EOF
@@ -280,18 +340,18 @@ Rules:
 - **One PR per run** in one mode — findings or cleanup, never both. See Step 4b for why.
 - **Do not auto-merge.** PRs are for human review. If `gh pr merge --auto` is tempting, resist it.
 - **Never push to `main` directly.** The skill always opens a PR even for tiny edits.
-- **Open the PR if any of:** (a) Step 4 produced edits under `skills/`, (b) Step 0's `npx skills update` produced changes under `.agents/skills/`, (c) Step 4b ran skill-cleaner and it made changes, or (d) Step 5b advanced the state cursor. Any one is worth a PR — those changes still need a human to merge so the cursor lands on `main`.
-- **If the run analyzed zero conversations** (puller returned an empty batch and no meta-skill updates), skip the PR entirely — there's no cursor to advance and nothing to ship. Go to Step 7 with "no changes warranted".
-- **State-only PRs are normal.** A run with no findings, no cleanup, and no meta-skill updates but with a non-empty batch should still open a PR containing only the `state/state.json` bump — that's how the cursor persists. Title and body should make clear it's a cursor-only run.
+- **Open the PR if any of:** (a) Step 4 produced edits under `skills/` (from conversation findings *or* brief audit), (b) Step 0's `npx skills update` produced changes under `.agents/skills/`, (c) Step 4b ran skill-cleaner and it made changes, or (d) Step 5b advanced either cursor. Any one is worth a PR — those changes still need a human to merge so the cursors land on `main`.
+- **If the run analyzed zero inputs** (both pullers returned empty batches and no meta-skill updates), skip the PR entirely — nothing to advance, nothing to ship. Go to Step 7 with "no changes warranted".
+- **State-only PRs are normal.** A run with no findings, no cleanup, and no meta-skill updates but with a non-empty batch of conversations and/or briefs should still open a PR containing only the cursor bumps — that's how the cursors persist. Title and body should make clear it's a cursor-only run.
 
 ### Step 7 — Tell the user in the conversation what happened and why
 
 Post a summary in the conversation that triggered this run (or stdout if scheduled), with:
 
 1. Whether `npx skills update` ran cleanly and whether it changed any external meta-skill under `.agents/skills/` (one line — which meta-skills + a sentence on what changed if non-trivial).
-2. How many conversations were analyzed, how many had findings, how many findings led to edits.
+2. How many conversations were analyzed and how many briefs audited (Step 3b); how many of each had findings; how many findings led to edits.
 3. Which mode this run ended up in — findings, cleanup, or no-op — and the PR URL (or "no PR opened — no changes warranted").
-4. If findings mode: for each skill edited, one sentence on the pattern and one sentence on the fix. Plus notable findings that *didn't* become edits, so the user knows nothing was hidden.
+4. If findings mode: for each skill edited, one sentence on the pattern and one sentence on the fix. Call out separately whether the finding came from conversation analysis or brief audit. Plus notable findings that *didn't* become edits, so the user knows nothing was hidden.
 5. If cleanup mode: which skill was cleaned, why it was the chosen candidate, and the size delta from skill-cleaner's report.
 
 Keep it scannable. The PR body has the full evidence; the summary is the orientation.
