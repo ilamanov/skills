@@ -144,9 +144,37 @@ For every tagged moment, record:
 Group all findings by `skill_in_use`. For each skill:
 
 1. **Look for repetition.** A single one-off steering moment is usually not enough to justify a skill edit — users have varied preferences and the model has off days. Two or more independent instances of the same pattern is the threshold for action. Note exceptions: any safety/destructive issue (force push, hard reset, deleted user work) is worth acting on after a single occurrence.
-2. **Before drafting any edits, read the relevant external meta-skills under `.agents/skills/`.** At minimum, read `.agents/skills/skill-creator/SKILL.md` — it contains the house style for skill writing: explaining the *why*, avoiding MUST/NEVER stacks, keeping prompts lean, when to bundle a script. If other meta-skills are installed (e.g. something for evaluation, optimization, or packaging) and they're relevant to the kind of edit you're about to draft, read those too. The bar is: "the author of the meta-skill would approve this edit."
-3. **Draft the smallest change that would have prevented the pattern.** Apply the skill-creator principles: explain the *why*, prefer reframing over MUST/NEVER, keep the prompt lean. A new sentence in the right section often beats a new heading.
+2. **Before drafting any edits, read `.agents/skills/skill-creator/SKILL.md`.** That's the canonical reference for how skills in this repo are written: explain the *why*, avoid stacks of MUST/NEVER, keep prompts lean, prefer reframing over heavy constraints, bundle scripts for repeated work. Every edit you propose should be one skill-creator would approve. If other meta-skills under `.agents/skills/` are relevant to the kind of edit you're about to draft (e.g. evaluation, packaging), read those too.
+3. **Draft the smallest change that would have prevented the pattern.** Apply the skill-creator principles. A new sentence in the right section often beats a new heading.
 4. **Decide what doesn't change.** Findings tied to one-off user preferences, project-specific context, or noise should be documented in the PR body but not turned into skill edits.
+
+### Step 4b — If no analysis-driven edits, switch to cleanup mode
+
+A run produces analysis-driven edits *or* a cleanup pass — never both. Bundling the two muddies review: the reviewer can't easily tell whether a deletion is a deliberate trim or a regression in the new findings, and the cleanup gets rubber-stamped along with the findings instead of getting its own scrutiny.
+
+So after Step 4, branch:
+
+- **If Step 4 produced any edits**, skip this step entirely and go to Step 5. Even if a target skill looks bloated, leave the cleanup for a future run — shipping the finding now matters more than tidying.
+- **If Step 4 produced no edits** (no patterns met the bar, all findings were noise, or the batch was empty of high-signal conversations), consider this run a cleanup-mode run.
+
+In cleanup mode:
+
+1. Survey user-owned skills under `skills/` and consider candidates that genuinely need simplification. A finding-free run does **not** mean a skill must be cleaned — most runs in cleanup mode should be no-ops, because most skills on most days are fine. Only count a skill as a candidate if you see real signals: SKILL.md past ~300 lines and growing across recent commits, repeated *why* explanations, dense MUST/NEVER stacks, multiple paragraphs added by previous skill-improver runs piling onto the same section, sections that no longer match the workflow. Vague "could be tighter" doesn't qualify — skill-cleaner itself will refuse to make changes if the target is already tight, and burning a PR on a no-op cleanup wastes the reviewer's time.
+2. **Filter out skills that were recently cleaned and haven't meaningfully grown since.** For each candidate, check git log for the last cleanup pass on that file:
+   ```bash
+   git log --format='%H %ad %s' --date=short -- skills/<name>/SKILL.md | grep -i 'cleanup' | head -1
+   ```
+   If there's a hit, look at what's landed on that file since:
+   ```bash
+   git log --oneline <last-cleanup-sha>..HEAD -- skills/<name>/SKILL.md
+   git diff --stat <last-cleanup-sha>..HEAD -- skills/<name>/SKILL.md
+   ```
+   Skip the candidate if the last cleanup was recent (rule of thumb: within the last ~30 days *or* within the last 3 skill-improver runs that touched it) **and** the churn since is small (under ~50 lines added, or just trivial edits like typo fixes). The point is to stop the loop of re-cleaning the same skill every run — a skill that was just tightened needs time to accumulate real growth before another pass is justified.
+3. After filtering, if no candidate remains, this is a no-op run — go to Step 5 and let Step 6 decide whether the cursor-bump alone is worth a PR. If one or more candidates remain, pick the single best one (largest, or the one with the most clearly bloated section).
+4. Read `skills/skill-cleaner/SKILL.md` and follow it on the chosen skill. It edits in place and returns a structured report. If skill-cleaner itself reports "no changes — skill is already tight", treat the run as a no-op and don't open a cleanup PR for it (this is the second safety net behind the recency filter — if the first didn't catch it, the cleaner's own judgment does).
+5. The report is the entire payload of this run's PR — the cleanup *is* the change. Step 6's PR body uses the cleanup-mode template.
+
+When in doubt, lean toward no-op. A state-only PR (or no PR at all) is always preferable to a cleanup that wasn't justified — re-cleaning a fine skill churns the file, dilutes the signal of past cleanup commits, and trains the reviewer to ignore cleanup PRs.
 
 ### Step 5 — Make the edits in a feature branch
 
@@ -181,13 +209,17 @@ git checkout -- skills/skill-improver/state/state.json
 
 ### Step 6 — Open one PR per run
 
+The body depends on which mode the run ended up in (see Step 4b). Pick the matching template.
+
+**Findings-mode PR** (Step 4 produced edits):
+
 ```bash
 git add -A
-git commit -m "skill-improver: improvements from run $(date -u +%Y-%m-%d)"
+git commit -m "skill-improver: findings from run $(date -u +%Y-%m-%d)"
 git push -u origin HEAD
 gh pr create --title "skill-improver: $(date -u +%Y-%m-%d) findings" --body "$(cat <<'EOF'
 ## Summary
-<one paragraph: how many conversations analyzed, how many findings, which skills touched, plus whether skill-creator was updated this run>
+<one paragraph: how many conversations analyzed, how many findings, which skills touched, plus whether any external meta-skill was updated this run>
 
 ## External meta-skill updates
 <only if Step 0 produced changes; one bullet per updated meta-skill>
@@ -219,13 +251,38 @@ EOF
 )"
 ```
 
+**Cleanup-mode PR** (Step 4 produced no edits, Step 4b ran skill-cleaner):
+
+```bash
+git add -A
+git commit -m "skill-improver: cleanup pass from run $(date -u +%Y-%m-%d)"
+git push -u origin HEAD
+gh pr create --title "skill-improver: $(date -u +%Y-%m-%d) cleanup of <skill-name>" --body "$(cat <<'EOF'
+## Summary
+No analysis-driven edits this run (<one sentence on why — empty batch / no patterns met the bar / all findings were noise>). Switched to cleanup mode and ran skill-cleaner on `skills/<name>/`.
+
+## External meta-skill updates
+<only if Step 0 produced changes; same format as findings PR>
+
+## Cleanup pass: skills/<name>/SKILL.md
+**Why this skill:** <one sentence — e.g. "470 lines, +180 from skill-improver runs over the last 3 months, dense MUST stacks in Step 3">
+<paste the full report skill-cleaner returned>
+
+## Cursor
+Advanced state cursor for: <project[/source] list with new timestamps>
+
+🤖 Generated by skill-improver
+EOF
+)"
+```
+
 Rules:
-- **One PR per run**, not one per skill. The reviewer needs to see all evidence in one place.
+- **One PR per run** in one mode — findings or cleanup, never both. See Step 4b for why.
 - **Do not auto-merge.** PRs are for human review. If `gh pr merge --auto` is tempting, resist it.
 - **Never push to `main` directly.** The skill always opens a PR even for tiny edits.
-- **Open the PR if any of:** (a) conversation analysis produced edits under `skills/`, (b) Step 0's `npx skills update` produced changes under `.agents/skills/`, or (c) Step 5b advanced the state cursor. Any one is worth a PR — those changes still need a human to merge so the cursor lands on `main`.
+- **Open the PR if any of:** (a) Step 4 produced edits under `skills/`, (b) Step 0's `npx skills update` produced changes under `.agents/skills/`, (c) Step 4b ran skill-cleaner and it made changes, or (d) Step 5b advanced the state cursor. Any one is worth a PR — those changes still need a human to merge so the cursor lands on `main`.
 - **If the run analyzed zero conversations** (puller returned an empty batch and no meta-skill updates), skip the PR entirely — there's no cursor to advance and nothing to ship. Go to Step 7 with "no changes warranted".
-- **State-only PRs are normal.** A run with no findings *and* no meta-skill updates but with a non-empty batch should still open a PR containing only the `state/state.json` bump — that's how the cursor persists. Title and body should make clear it's a cursor-only run.
+- **State-only PRs are normal.** A run with no findings, no cleanup, and no meta-skill updates but with a non-empty batch should still open a PR containing only the `state/state.json` bump — that's how the cursor persists. Title and body should make clear it's a cursor-only run.
 
 ### Step 7 — Tell the user in the conversation what happened and why
 
@@ -233,9 +290,9 @@ Post a summary in the conversation that triggered this run (or stdout if schedul
 
 1. Whether `npx skills update` ran cleanly and whether it changed any external meta-skill under `.agents/skills/` (one line — which meta-skills + a sentence on what changed if non-trivial).
 2. How many conversations were analyzed, how many had findings, how many findings led to edits.
-3. The PR URL (or "no PR opened — no changes warranted").
-4. For each skill edited from analysis: one sentence on the pattern and one sentence on the fix.
-5. Notable findings that *didn't* become edits, so the user knows nothing was hidden.
+3. Which mode this run ended up in — findings, cleanup, or no-op — and the PR URL (or "no PR opened — no changes warranted").
+4. If findings mode: for each skill edited, one sentence on the pattern and one sentence on the fix. Plus notable findings that *didn't* become edits, so the user knows nothing was hidden.
+5. If cleanup mode: which skill was cleaned, why it was the chosen candidate, and the size delta from skill-cleaner's report.
 
 Keep it scannable. The PR body has the full evidence; the summary is the orientation.
 
