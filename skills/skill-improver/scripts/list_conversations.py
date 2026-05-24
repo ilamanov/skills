@@ -298,6 +298,11 @@ def main():
     results = []
     seen_ids: set[tuple[str, str]] = set()
 
+    # Exclude the currently-executing Claude Code session so a run that lives
+    # under a watched project doesn't pull and analyze its own in-flight
+    # transcript (which yields a partial, misleading view of itself).
+    current_claude_session = os.environ.get("CLAUDE_CODE_SESSION_ID") or ""
+
     first_run_cutoff = None
     if args.first_run_days > 0:
         first_run_cutoff = (
@@ -309,6 +314,8 @@ def main():
             return
         proj_name = match_project(rec["cwd"], projects)
         if not proj_name:
+            return
+        if src == "claude" and current_claude_session and rec["conversation_id"] == current_claude_session:
             return
         rec["project"] = proj_name
         key = (src, rec["conversation_id"])
