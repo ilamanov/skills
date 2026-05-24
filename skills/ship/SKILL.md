@@ -102,7 +102,7 @@ In any of those cases, present 3–5 candidates with one-line summaries (or surf
 Read description, comments, attachments, status.
 
 - **Plan-first?** If the ticket explicitly asks for human plan approval ("plan first", "approve plan", "review plan before implementing"), do Step 3. Otherwise skip it.
-- **Resume?** If a worktree or branch already exists for this ticket, resume there.
+- **Resume vs. restart?** If a worktree, branch, or open PR stack already exists for this ticket, **do not silently resume**. Resuming abandoned work and restarting live work are both costly mistakes — the wrong default has burned full implementation sessions in the past. Inspect what exists first: is the worktree on disk with recent uncommitted/committed work? Does the branch have a meaningful diff against `main`? Are the PRs in the stack still in active review? If the answer is yes on all counts and the user's prompt is consistent with continuing (no "ignore previous", no "start over"), resume there. Otherwise — branch with no diff, worktree gone, PRs gone stale, or any signal the prior attempt was abandoned — surface a one-line inventory of what was found (branch name, last commit timestamp, PR URLs and states) and ask the user once whether to resume or start fresh. An explicit user override in the prompt ("ignore the previous attempt", "continue where we left off") is sufficient on its own and skips the question.
 
 Apply the Step 2 status transition (see table above).
 

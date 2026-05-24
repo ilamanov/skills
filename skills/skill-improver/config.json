@@ -29,6 +29,16 @@
         "/Users/nazar/Documents/projects/skills/.claude-worktrees/*",
         "/Users/nazar/gwt-worktrees/skills/*"
       ]
+    },
+    {
+      "name": "cartograph",
+      "roots": [
+        "/Users/nazar/Documents/projects/cartograph",
+        "/Users/nazar/.codex/worktrees/*/cartograph",
+        "/Users/nazar/.cursor/worktrees/cartograph/*",
+        "/Users/nazar/Documents/projects/cartograph/.claude-worktrees/*",
+        "/Users/nazar/gwt-worktrees/cartograph/*"
+      ]
     }
   ]
 }
