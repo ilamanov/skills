@@ -21,12 +21,13 @@ If any is missing, stop and ask.
 
 The agent never advances past these without explicit user confirmation ("yes", "approved", "merge", etc.). Permission does not carry over between gates.
 
-| #   | Gate           | When                                                                    |
-| --- | -------------- | ----------------------------------------------------------------------- |
-| 1   | Task selection | Only when the ticket is ambiguous or conflicts (Step 1)                 |
-| 2   | Plan approval  | Only when the ticket asks for it (Step 2)                               |
-| 3   | Stack breakup  | Always, after implementation, before splitting into the stack (Step 5c) |
-| 4   | Merge          | Always, before merging any PR in the stack                              |
+| #   | Gate                 | When                                                                                |
+| --- | -------------------- | ----------------------------------------------------------------------------------- |
+| 1   | Task selection       | Only when the ticket is ambiguous or conflicts (Step 1)                             |
+| 2   | Plan approval        | Only when the ticket asks for it (Step 2)                                           |
+| 3   | Missing dependencies | Only when the ticket requires deps/services not already set up in the repo (Step 2) |
+| 4   | Stack breakup        | Always, after implementation, before splitting into the stack (Step 5c)             |
+| 5   | Merge                | Always, before merging any PR in the stack                                          |
 
 ## Progress checklist
 
@@ -35,6 +36,7 @@ Copy this into the response and tick as work progresses:
 ```
 - [ ] 1. Select ticket
 - [ ] 2. Read ticket; decide plan-first vs. straight-to-implement
+- [ ] 2b. Verify required dependencies are present — flag any missing (gate)
 - [ ] 3. Plan (if required) — approved
 - [ ] 4. Worktree + branch
 - [ ] 5a. Implement end-to-end on the working branch (no stack yet)
@@ -103,6 +105,24 @@ Read description, comments, attachments, status.
 - **Resume?** If a worktree or branch already exists for this ticket, resume there.
 
 Apply the Step 2 status transition (see table above).
+
+## Step 2b — Verify required dependencies (gate)
+
+Before any implementation (and before Step 3 if planning), enumerate the **external dependencies and one-time setup** the ticket requires: SDKs / npm packages, framework primitives that need installation (e.g. cron, queues, workflows, auth providers), managed services that need provisioning (databases, vector stores, third-party APIs), environment variables, and infra config (e.g. `vercel.ts`, `vercel.json` entries, cron schedules).
+
+For each, check whether it's **already present** in the repo:
+
+- Package installed in `package.json` / lockfile?
+- Setup files in place (e.g. cron defined in `vercel.ts`/`vercel.json`, workflow runtime configured, env keys in `.env.example`)?
+- Service provisioned and credentials available?
+
+**Stop and ask the user** if anything required is missing. Do **not** install packages, add cron schedules, provision marketplace integrations, or modify project-level config (`vercel.ts`, `package.json` deps, `.env.example`, etc.) as part of this skill's run — the user wants to handle these manually. Report the gap as a short bulleted list and wait for the user to either:
+
+- install/set up the dependency themselves and tell you to proceed, or
+- explicitly authorize you to install/configure it as part of the ticket, or
+- redirect (descope the ticket, pick a different approach that uses existing deps, etc.).
+
+Only proceed once every required dependency is in place or the user has explicitly authorized the missing setup. Tickets should consume existing infrastructure; new infrastructure is the user's call.
 
 ## Step 3 — Plan (only if required)
 
