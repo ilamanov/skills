@@ -48,11 +48,18 @@ The `skills` project is configured as one of the targets — this is intentional
 
 The path encoding in `~/.claude/projects/` is lossy (both `/` and `.` map to `-`), so don't try to derive cwd from the dir name. The `cwd`/`projectPath` field inside the file is authoritative — that's what the puller matches against `config.json` patterns.
 
+## Two kinds of skills in this repo
+
+Be precise about which is which — they're treated very differently:
+
+- **External meta-skills** live under `.agents/skills/` (and `.claude/skills/` which is just symlinks to `.agents/`). These come from upstream via `npx skills update` — skill-creator is the canonical example, but more may be added over time. They are the *tools used to create, maintain, and improve* the user's own skills. **Never edit these.** They are read-only from this skill's perspective; updates only ever come from `npx skills update`.
+- **User-owned skills** live under `skills/` at the repo root (e.g. `skills/ship/`, `skills/ticket/`, `skills/skill-improver/`). These are what this skill exists to improve. All analysis-driven edits target files here.
+
 ## The run
 
-### Step 0 — Refresh skill-creator
+### Step 0 — Refresh external meta-skills
 
-Skill-creator is upstream — it encodes how *all* skills in this repo should be written, and any improvement to its guidance should land before we write new skill edits this run.
+The meta-skills under `.agents/skills/` encode how skills in this repo should be written and operated. Refresh them at the top of every run so the rest of the run uses the latest guidance — and so any upstream improvements ship to the user promptly.
 
 ```bash
 cd "$(git -C "$CLAUDE_PROJECT_DIR" rev-parse --show-toplevel)"
@@ -60,9 +67,10 @@ npx skills update
 git status --short
 ```
 
-If `git status` shows changes (typically under `.agents/skills/skill-creator/` and/or `.claude/skills/skill-creator/`), stage and keep them — they will ship in the same PR as the analysis-driven edits. Record what changed (which files, brief summary of the diff) — the PR body explains it separately from the conversation-driven edits.
-
-If `npx skills update` fails (network, auth, etc.), don't abort the run — proceed with Steps 1+ using the currently-installed skill-creator. Note the failure in the final summary.
+Treatment:
+- If `git status` shows changes (anywhere under `.agents/skills/` — could be any external meta-skill, not just skill-creator), stage and keep them. They will ship in the same PR as any analysis-driven edits, in their own PR section.
+- These are not findings from conversation analysis — they're upstream releases. Summarize *what* changed (which meta-skill(s), brief diff summary) but don't try to invent a "why we changed this" — the why lives upstream.
+- If `npx skills update` fails (network, auth, etc.), don't abort the run — proceed with Steps 1+ using the currently-installed versions. Note the failure in the final summary.
 
 ### Step 1 — Pull new conversations
 
@@ -136,7 +144,7 @@ For every tagged moment, record:
 Group all findings by `skill_in_use`. For each skill:
 
 1. **Look for repetition.** A single one-off steering moment is usually not enough to justify a skill edit — users have varied preferences and the model has off days. Two or more independent instances of the same pattern is the threshold for action. Note exceptions: any safety/destructive issue (force push, hard reset, deleted user work) is worth acting on after a single occurrence.
-2. **Before drafting any edits, read the skill-creator SKILL.md** (`.agents/skills/skill-creator/SKILL.md` or `.claude/skills/skill-creator/SKILL.md` — they should be in sync after Step 0). It contains the house style for skill writing in this repo: how to phrase instructions, why to explain the *why* instead of stacking MUSTs, how to keep prompts lean, when to bundle a script. The improvements you propose should match that style — the bar is "the skill-creator author would approve this edit."
+2. **Before drafting any edits, read the relevant external meta-skills under `.agents/skills/`.** At minimum, read `.agents/skills/skill-creator/SKILL.md` — it contains the house style for skill writing: explaining the *why*, avoiding MUST/NEVER stacks, keeping prompts lean, when to bundle a script. If other meta-skills are installed (e.g. something for evaluation, optimization, or packaging) and they're relevant to the kind of edit you're about to draft, read those too. The bar is: "the author of the meta-skill would approve this edit."
 3. **Draft the smallest change that would have prevented the pattern.** Apply the skill-creator principles: explain the *why*, prefer reframing over MUST/NEVER, keep the prompt lean. A new sentence in the right section often beats a new heading.
 4. **Decide what doesn't change.** Findings tied to one-off user preferences, project-specific context, or noise should be documented in the PR body but not turned into skill edits.
 
@@ -145,10 +153,15 @@ Group all findings by `skill_in_use`. For each skill:
 ```bash
 cd "$(git -C "$CLAUDE_PROJECT_DIR" rev-parse --show-toplevel)"
 git checkout -b skill-improver/run-$(date -u +%Y%m%d-%H%M%S)
+# Step 0's npx skills update changes (if any) are already in the working tree —
+# they'll be included in the same commit. Now apply analysis-driven edits.
 # apply edits to skills/<name>/SKILL.md ...
 ```
 
-Edit only `SKILL.md` files unless a finding clearly justifies a script or reference file change. Don't touch unrelated skills. Don't bundle drive-by cleanup with the improvement edits — keep the diff focused on the evidence.
+Scope rules:
+- Analysis-driven edits target **only `skills/<name>/`** (user-owned skills). Never edit anything under `.agents/skills/` or `.claude/skills/` — those are upstream and only change via `npx skills update`. If a finding clearly points at an external meta-skill (e.g. skill-creator gave bad advice), record it in the PR's "Considered but not changed" section and tag it as `upstream:<skill-name>` so the user can decide whether to file an issue upstream.
+- Edit only `SKILL.md` files unless a finding clearly justifies a script or reference file change.
+- Don't touch unrelated skills. Don't bundle drive-by cleanup with the improvement edits — keep the diff focused on the evidence.
 
 ### Step 6 — Open one PR per run
 
@@ -160,9 +173,11 @@ gh pr create --title "skill-improver: $(date -u +%Y-%m-%d) findings" --body "$(c
 ## Summary
 <one paragraph: how many conversations analyzed, how many findings, which skills touched, plus whether skill-creator was updated this run>
 
-## skill-creator update
-<only if Step 0 produced changes>
-<brief summary of what changed upstream and why it landed in this PR — link the diff if helpful>
+## External meta-skill updates
+<only if Step 0 produced changes; one bullet per updated meta-skill>
+- `.agents/skills/<name>/` — <brief summary of what changed upstream>
+
+These changes come from `npx skills update` and are bundled here so the user has a single review surface. They are not analysis-driven edits.
 
 ## Changes from conversation analysis
 For each skill edited:
@@ -192,14 +207,14 @@ Rules:
 - **One PR per run**, not one per skill. The reviewer needs to see all evidence in one place.
 - **Do not auto-merge.** PRs are for human review. If `gh pr merge --auto` is tempting, resist it.
 - **Never push to `main` directly.** The skill always opens a PR even for tiny edits.
-- **Open the PR if either** (a) conversation analysis produced edits, or (b) Step 0's `npx skills update` produced changes. The skill-creator update on its own is worth a PR — those changes still need a human to merge.
-- **If both are empty** (no analysis findings AND no skill-creator changes), do not open a PR. Skip to Step 7 with a summary stating "no changes warranted".
+- **Open the PR if either** (a) conversation analysis produced edits under `skills/`, or (b) Step 0's `npx skills update` produced changes under `.agents/skills/`. Either alone is worth a PR — those changes still need a human to merge.
+- **If both are empty** (no analysis findings AND no meta-skill updates), do not open a PR. Skip to Step 7 with a summary stating "no changes warranted".
 
 ### Step 7 — Tell the user in the conversation what happened and why
 
 Post a summary in the conversation that triggered this run (or stdout if scheduled), with:
 
-1. Whether `npx skills update` ran cleanly and whether it changed anything (one line — file count + a sentence on what changed if non-trivial).
+1. Whether `npx skills update` ran cleanly and whether it changed any external meta-skill under `.agents/skills/` (one line — which meta-skills + a sentence on what changed if non-trivial).
 2. How many conversations were analyzed, how many had findings, how many findings led to edits.
 3. The PR URL (or "no PR opened — no changes warranted").
 4. For each skill edited from analysis: one sentence on the pattern and one sentence on the fix.
@@ -219,7 +234,9 @@ This idempotently advances `state/state.json` to the newest `started_at` per pro
 
 ## Recursive self-improvement
 
-The `skills` project is one of the configured targets. That means each run also analyzes conversations *in the skills repo itself* — including past skill-improver runs. If a previous run missed a pattern, or wrote a finding-quote-edit that turned out to be wrong, the next run sees the steering in the follow-up conversation and proposes a fix to *this* SKILL.md.
+The `skills` project is one of the configured targets, and `skill-improver` lives under `skills/` (user-owned), so each run also analyzes conversations *in the skills repo itself* — including past skill-improver runs — and can propose edits to *this* SKILL.md. (The same does **not** apply to skill-creator and other meta-skills under `.agents/skills/` — those are upstream and out of scope for analysis-driven edits.)
+
+If a previous run missed a pattern, or wrote a finding-quote-edit that turned out to be wrong, the next run sees the steering in the follow-up conversation and proposes a fix here.
 
 Common self-improvements to watch for:
 - The puller missed a class of conversation → improvement to `scripts/list_conversations.py` (cite the missed conversation as evidence)
