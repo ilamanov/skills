@@ -1,4 +1,15 @@
 {
-  "projects": {},
-  "last_run_at": null
+  "projects": {
+    "pixelle2": {
+      "codex": "2026-05-24T19:17:53.551Z",
+      "claude": "2026-05-22T23:34:24.923Z"
+    },
+    "noodle-flow": {
+      "codex": "2026-05-24T19:38:11.540Z"
+    },
+    "skills": {
+      "claude": "2026-05-24T19:39:52.549Z"
+    }
+  },
+  "last_run_at": "2026-05-24T19:56:52.790506Z"
 }

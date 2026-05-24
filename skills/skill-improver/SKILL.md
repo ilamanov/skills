@@ -163,6 +163,22 @@ Scope rules:
 - Edit only `SKILL.md` files unless a finding clearly justifies a script or reference file change.
 - Don't touch unrelated skills. Don't bundle drive-by cleanup with the improvement edits — keep the diff focused on the evidence.
 
+### Step 5b — Advance the cursor (before commit)
+
+The cursor lives in the tracked file `skills/skill-improver/state/state.json` and must persist across runs on `main`. The only way to land it without pushing to `main` directly is to include it in the same PR as the rest of the run. So advance it **before** committing in Step 6 — never leave it dirty in the working tree.
+
+```bash
+python3 "$SKILL_DIR/scripts/list_conversations.py" --update-state > /dev/null
+```
+
+This idempotently advances `state/state.json` to the newest `started_at` per project/source seen in this batch. The resulting working-tree change is part of the commit in Step 6.
+
+**If the run aborts before Step 6** (push rejected, gh error, etc.), discard the state.json change so the next run re-analyzes the same batch:
+
+```bash
+git checkout -- skills/skill-improver/state/state.json
+```
+
 ### Step 6 — Open one PR per run
 
 ```bash
@@ -207,8 +223,9 @@ Rules:
 - **One PR per run**, not one per skill. The reviewer needs to see all evidence in one place.
 - **Do not auto-merge.** PRs are for human review. If `gh pr merge --auto` is tempting, resist it.
 - **Never push to `main` directly.** The skill always opens a PR even for tiny edits.
-- **Open the PR if either** (a) conversation analysis produced edits under `skills/`, or (b) Step 0's `npx skills update` produced changes under `.agents/skills/`. Either alone is worth a PR — those changes still need a human to merge.
-- **If both are empty** (no analysis findings AND no meta-skill updates), do not open a PR. Skip to Step 7 with a summary stating "no changes warranted".
+- **Open the PR if any of:** (a) conversation analysis produced edits under `skills/`, (b) Step 0's `npx skills update` produced changes under `.agents/skills/`, or (c) Step 5b advanced the state cursor. Any one is worth a PR — those changes still need a human to merge so the cursor lands on `main`.
+- **If the run analyzed zero conversations** (puller returned an empty batch and no meta-skill updates), skip the PR entirely — there's no cursor to advance and nothing to ship. Go to Step 7 with "no changes warranted".
+- **State-only PRs are normal.** A run with no findings *and* no meta-skill updates but with a non-empty batch should still open a PR containing only the `state/state.json` bump — that's how the cursor persists. Title and body should make clear it's a cursor-only run.
 
 ### Step 7 — Tell the user in the conversation what happened and why
 
@@ -221,16 +238,6 @@ Post a summary in the conversation that triggered this run (or stdout if schedul
 5. Notable findings that *didn't* become edits, so the user knows nothing was hidden.
 
 Keep it scannable. The PR body has the full evidence; the summary is the orientation.
-
-### Step 8 — Advance the cursor
-
-Only after Step 6 succeeded (or there were no findings):
-
-```bash
-python3 "$SKILL_DIR/scripts/list_conversations.py" --update-state > /dev/null
-```
-
-This idempotently advances `state/state.json` to the newest `started_at` per project/source seen in this batch. If Step 6 failed (push rejected, gh error, etc.), do NOT advance the cursor — the next run should re-analyze the same batch.
 
 ## Recursive self-improvement
 
