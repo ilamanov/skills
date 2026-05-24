@@ -1,0 +1,34 @@
+{
+  "projects": [
+    {
+      "name": "pixelle2",
+      "roots": [
+        "/Users/nazar/LocalProjects/pixelle2",
+        "/Users/nazar/.codex/worktrees/*/pixelle2",
+        "/Users/nazar/.cursor/worktrees/pixelle2/*",
+        "/Users/nazar/LocalProjects/pixelle2/.claude-worktrees/*",
+        "/Users/nazar/gwt-worktrees/pixelle2/*"
+      ]
+    },
+    {
+      "name": "noodle-flow",
+      "roots": [
+        "/Users/nazar/LocalProjects/noodle-flow",
+        "/Users/nazar/.codex/worktrees/*/noodle-flow",
+        "/Users/nazar/.cursor/worktrees/noodle-flow/*",
+        "/Users/nazar/LocalProjects/noodle-flow/.claude-worktrees/*",
+        "/Users/nazar/gwt-worktrees/noodle-flow/*"
+      ]
+    },
+    {
+      "name": "skills",
+      "roots": [
+        "/Users/nazar/Documents/projects/skills",
+        "/Users/nazar/.codex/worktrees/*/skills",
+        "/Users/nazar/.cursor/worktrees/skills/*",
+        "/Users/nazar/Documents/projects/skills/.claude-worktrees/*",
+        "/Users/nazar/gwt-worktrees/skills/*"
+      ]
+    }
+  ]
+}
