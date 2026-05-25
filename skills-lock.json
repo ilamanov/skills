@@ -1,6 +1,24 @@
 {
   "version": 1,
   "skills": {
+    "grill-me": {
+      "source": "mattpocock/skills",
+      "sourceType": "github",
+      "skillPath": "skills/productivity/grill-me/SKILL.md",
+      "computedHash": "784f0dbb7403b0f00324bce9a112f715342777a0daee7bbb7385f9c6f0a170ea"
+    },
+    "grill-with-docs": {
+      "source": "mattpocock/skills",
+      "sourceType": "github",
+      "skillPath": "skills/engineering/grill-with-docs/SKILL.md",
+      "computedHash": "a5c65e76275008b469962f7bee8b34866f1c9b0709f4886e71c8e731735640e4"
+    },
+    "pr-walkthrough": {
+      "source": "tldraw/tldraw",
+      "sourceType": "github",
+      "skillPath": "skills/pr-walkthrough/SKILL.md",
+      "computedHash": "be7da082321633d6f038a8b40b1dd7ac037391bac22a34599809bda2a39dfb14"
+    },
     "skill-creator": {
       "source": "anthropics/skills",
       "sourceType": "github",
