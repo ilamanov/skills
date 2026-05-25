@@ -160,15 +160,16 @@ If the skill isn't installed in this environment, skip this step — don't attem
 
 ### 5c. Review the full diff; propose stack breakup (conditional gate)
 
-Inspect the working-tree diff against `main` (e.g. `git diff main --stat`, then read the changes including untracked files via `git status`). Group similar functionality into a thorough-but-concise stack proposal. One bullet per branch, in stack order. Each: branch slug, one-line summary, scope (small/medium), key files. Pattern: refactors → scaffolding → behavior → UI → tests.
+Inspect the working-tree diff against `main` (e.g. `git diff main --stat`, then read the changes including untracked files via `git status`). Group similar functionality into a thorough-but-concise stack proposal. One bullet per branch, in stack order. Each: branch slug, one-line summary, scope (small/medium), key files.
+
+**Slice by functionality, not by code shape.** Each PR should deliver an observable piece of the feature on its own. Helpers, types, and shared utilities ride along with the **first PR that uses them** — don't create a slice whose only content is plumbing for a later PR (e.g. "add X type", "extract Y helper for upcoming feature", "scaffolding for Z enforcement"). A standalone *refactor* PR is fine when the refactor itself is the deliverable (e.g. extracting an existing hook for reuse, renaming a module, splitting a file that's already overloaded) — but a *scaffolding* PR that only exists to make the next PR smaller is the wrong split. If you find yourself proposing "Account Helpers" → "Account Enforcement" → "Account UI," collapse them: the helpers land with whichever functional slice first calls them.
 
 ```md
-**Proposed PR stack** (4 PRs, bottom → top)
+**Proposed PR stack** (3 PRs, bottom → top)
 
-1. `<agent>/feed-loader-refactor` (small) — extract `useFeedLoader`. Files: `app/feed/feed.tsx`, new `app/feed/use-feed-loader.ts`.
-2. `<agent>/feed-pagination-types` (small) — `Cursor` type + DB helper. Files: `lib/db.ts`, `lib/feed-types.ts`.
-3. `<agent>/feed-pagination-server` (medium) — server action + cursor query. Files: `app/feed/actions.ts`, schema additions (migration deferred).
-4. `<agent>/feed-pagination-ui` (medium) — wire infinite scroll + tests. Files: `app/feed/feed.tsx`, `__tests__/feed.test.tsx`.
+1. `<agent>/feed-loader-refactor` (small) — extract `useFeedLoader` (refactor is the deliverable, not setup for later PRs). Files: `app/feed/feed.tsx`, new `app/feed/use-feed-loader.ts`.
+2. `<agent>/feed-pagination-server` (medium) — server action + cursor query; `Cursor` type and DB helper land here because this is where they're first used. Files: `lib/db.ts`, `lib/feed-types.ts`, `app/feed/actions.ts`, schema additions (migration deferred).
+3. `<agent>/feed-pagination-ui` (medium) — wire infinite scroll + tests. Files: `app/feed/feed.tsx`, `__tests__/feed.test.tsx`.
 ```
 
 **Decide whether to gate.** The stack-breakup gate is **not always on** — it exists for cases the user genuinely needs to review before code is split and shipped. Use judgment along two axes:
