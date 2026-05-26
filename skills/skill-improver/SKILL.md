@@ -62,27 +62,17 @@ Be precise about which is which — they're treated very differently:
 
 Two pre-flight actions run before any analysis. Both happen in the **main worktree** of the skills repo (not a feature worktree).
 
-**0a. Sync `main` with `origin/main`.** Every later step branches off `main` — the upstream refresh below, the feature branch in Step 5 — so stale local `main` ships stale work. Fast-forward only:
+**0a. Sync `main` with `origin/main`.** Every later step branches off `main` — the upstream refresh below, the feature branch in Step 5 — so stale local `main` ships stale work. Fast-forward only.
 
-```bash
-cd "$(git -C "$CLAUDE_PROJECT_DIR" rev-parse --show-toplevel)"
-# Confirm we're on the main worktree and on the main branch with a clean tree
-git rev-parse --show-toplevel
-git status --porcelain
-git symbolic-ref --short HEAD
-# Only sync if clean and on main
-git fetch origin main
-git merge --ff-only origin/main
-```
-
-Treatment:
-- If the working tree is dirty or the current branch isn't `main`, skip the sync and note it in the final summary — don't stash, switch, or otherwise disturb in-progress work. Proceed to 0b using the current state.
-- If `git merge --ff-only` fails because local `main` has diverged from `origin/main`, do **not** force, reset, or rebase. Report the divergence in the final summary and proceed to 0b.
+Guardrails:
+- Don't disturb in-progress work — if the working tree is dirty or the current branch isn't `main`, skip the sync and proceed to 0b using the current state. Note it in the final summary.
+- Don't force, reset, or rebase. If `main` has diverged from `origin/main`, report the divergence in the final summary and proceed to 0b.
 - If the fetch fails (network, auth), don't abort — note the failure and proceed.
 
 **0b. Refresh external meta-skills.** The meta-skills under `.agents/skills/` encode how skills in this repo should be written and operated. Refresh them so the rest of the run uses the latest guidance — and so any upstream improvements ship to the user promptly.
 
 ```bash
+cd "$(git -C "$CLAUDE_PROJECT_DIR" rev-parse --show-toplevel)"
 npx skills update
 git status --short
 ```

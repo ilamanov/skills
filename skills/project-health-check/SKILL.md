@@ -16,13 +16,12 @@ These are provided when the skill is invoked — don't hardcode them:
 
 ## Check 1 — Sync main branch with remote
 
-In the **main worktree** (not any feature worktree), fast-forward the local `main` branch to match `origin/main`:
+In the **main worktree** (not any feature worktree), bring the local `main` branch in sync with `origin/main` via a fast-forward only.
 
-1. Identify the main worktree via `git worktree list` and run the remaining steps from there.
-2. If the working tree is dirty or the current branch isn't `main`, skip this check and report that — don't stash, switch, or otherwise disturb in-progress work.
-3. Otherwise: `git fetch origin main` then `git merge --ff-only origin/main`.
-   - **If already up to date or fast-forwarded cleanly:** note the result (and the new SHA if it moved) and move on.
-   - **If the fast-forward fails** (local `main` has diverged from `origin/main`): do **not** force, reset, or rebase. Report the divergence and move on.
+Guardrails:
+- Don't disturb in-progress work — if the working tree is dirty or the current branch isn't `main`, skip this check and report why.
+- Don't force, reset, or rebase. If `main` has diverged from `origin/main`, report the divergence and move on.
+- On success, note whether `main` moved (and to what SHA) so the final summary is concrete.
 
 ## Check 2 — Refresh installed skills
 
