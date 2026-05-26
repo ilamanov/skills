@@ -58,12 +58,31 @@ Be precise about which is which — they're treated very differently:
 
 ## The run
 
-### Step 0 — Refresh external meta-skills
+### Step 0 — Pre-flight: sync main, then refresh external meta-skills
 
-The meta-skills under `.agents/skills/` encode how skills in this repo should be written and operated. Refresh them at the top of every run so the rest of the run uses the latest guidance — and so any upstream improvements ship to the user promptly.
+Two pre-flight actions run before any analysis. Both happen in the **main worktree** of the skills repo (not a feature worktree).
+
+**0a. Sync `main` with `origin/main`.** Every later step branches off `main` — the upstream refresh below, the feature branch in Step 5 — so stale local `main` ships stale work. Fast-forward only:
 
 ```bash
 cd "$(git -C "$CLAUDE_PROJECT_DIR" rev-parse --show-toplevel)"
+# Confirm we're on the main worktree and on the main branch with a clean tree
+git rev-parse --show-toplevel
+git status --porcelain
+git symbolic-ref --short HEAD
+# Only sync if clean and on main
+git fetch origin main
+git merge --ff-only origin/main
+```
+
+Treatment:
+- If the working tree is dirty or the current branch isn't `main`, skip the sync and note it in the final summary — don't stash, switch, or otherwise disturb in-progress work. Proceed to 0b using the current state.
+- If `git merge --ff-only` fails because local `main` has diverged from `origin/main`, do **not** force, reset, or rebase. Report the divergence in the final summary and proceed to 0b.
+- If the fetch fails (network, auth), don't abort — note the failure and proceed.
+
+**0b. Refresh external meta-skills.** The meta-skills under `.agents/skills/` encode how skills in this repo should be written and operated. Refresh them so the rest of the run uses the latest guidance — and so any upstream improvements ship to the user promptly.
+
+```bash
 npx skills update
 git status --short
 ```
@@ -348,7 +367,7 @@ Rules:
 
 Post a summary in the conversation that triggered this run (or stdout if scheduled), with:
 
-1. Whether `npx skills update` ran cleanly and whether it changed any external meta-skill under `.agents/skills/` (one line — which meta-skills + a sentence on what changed if non-trivial).
+1. Whether the pre-flight ran cleanly — main-sync outcome (fast-forwarded / already up to date / skipped because dirty or diverged) and whether `npx skills update` changed any external meta-skill under `.agents/skills/` (one line — which meta-skills + a sentence on what changed if non-trivial).
 2. How many conversations were analyzed and how many briefs audited (Step 3b); how many of each had findings; how many findings led to edits.
 3. Which mode this run ended up in — findings, cleanup, or no-op — and the PR URL (or "no PR opened — no changes warranted").
 4. If findings mode: for each skill edited, one sentence on the pattern and one sentence on the fix. Call out separately whether the finding came from conversation analysis or brief audit. Plus notable findings that *didn't* become edits, so the user knows nothing was hidden.
