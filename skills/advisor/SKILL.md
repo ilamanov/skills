@@ -104,13 +104,21 @@ When the user says something that contradicts something concrete, name it direct
 
 Vague claims dissolve in concrete scenarios. When the user says "we'll handle retries" or "it'll be async", invent a specific failing case and ask what happens: "A user uploads at 11:59pm, the worker crashes at 12:00am during processing, the user retries at 12:01am — what state is the row in, and who owns making it consistent?"
 
+### Pressure-testing implementation complexity
+
+A proposed implementation often inherits hidden assumptions about UX that make it more complex than it needs to be. Before accepting a mechanically heavy approach — resumable jobs, distributed coordination, multi-step state machines, background reconciliation, generalized "handles any case" systems — check whether a small UX rebalance collapses the complexity. The recurring pattern: the spec says *"the system handles X automatically and seamlessly"*; the cheaper version says *"the user initiates X explicitly at a natural checkpoint"* — and the second often loses nothing real, sometimes more legible to the user.
+
+Concrete example: *"resumable bulk import that picks up where it left off across failures"* vs *"import the first N items synchronously; then show a 'import the rest?' prompt that kicks off a fresh job"*. The second eliminates an entire subsystem (no resume state, no failure-recovery branch, no background reconciliation) and the visible checkpoint is often a better experience than an invisible auto-resume.
+
+When the proposed approach has one of those expensive shapes, name it explicitly and propose the simpler alternative before the ticket gets written around the complex shape. Once a ticket says "resumable", the implementer will build resumability — and the time to push back is gone. This is one of the highest-leverage moves the skill makes: a single question during shaping can cut weeks of implementation and review.
+
 ### Checking the request from multiple angles
 
 A quick pass through each functional lens often surfaces problems no single perspective would catch. Skip lenses that obviously don't apply, but don't skip them just because they're uncomfortable to think through:
 
 - **Product:** does this actually solve the user problem? Is there a cheaper proxy that resolves 80% of the pain?
 - **Design:** is the UX coherent end-to-end? Are the surfaces consistent with how the rest of the product works?
-- **Engineering:** is the approach simple, idempotent, observable? What does it lock the system into that would be expensive to undo?
+- **Engineering:** is the approach simple, idempotent, observable? Could a UX rebalance collapse a mechanically complex piece into something trivial (see *Pressure-testing implementation complexity* above)? What does it lock the system into that would be expensive to undo?
 - **Business:** is the ROI obvious? What's the opportunity cost relative to other work the user could be doing?
 - **Ops:** who maintains this once it's shipped? How is it monitored? Who pages on failure?
 
@@ -162,7 +170,18 @@ The spec must be **standalone** (don't reference the conversation — a stranger
 
 ### Producing the ticket proposal and handing off to `ticket` (`output=tickets`)
 
-First, decide the slicing: one ticket or several? If the work is genuinely one cohesive, ship-able chunk, one ticket. If it's two or more independently valuable slices, several — ordered, with explicit dependencies. **Err toward fewer, larger tickets unless the slices are clearly independent — over-slicing creates coordination overhead.** For each ticket, name what it explicitly does **not** do, especially anything cut during shaping. The `Non-goals` field exists to prevent scope creep during implementation when someone reading the ticket thinks "while we're in there…"
+First, decide the slicing: one ticket or several? If the work is genuinely one cohesive, ship-able chunk, one ticket. If it's two or more independently valuable slices, several — ordered, with explicit dependencies. Err toward fewer, larger tickets *unless* the slices are clearly independent — over-slicing creates coordination overhead.
+
+But watch the inverse failure just as closely: a single ticket that quietly bundles two distinct concerns ships as a bloated PR (or PR stack) that's hard to review and hard to revert. Tells you should split:
+
+- You find yourself writing two goal sentences joined by "…and also…".
+- The acceptance criteria fall into two groups that could be reviewed and merged on different days without either feeling half-done.
+- A reasonable implementer could pick up either half alone and produce something the user would accept.
+- The two halves touch mostly non-overlapping parts of the system.
+
+When any of those fire, split — even if it means one shaping conversation produces two ticket stacks. Bundling looks like efficiency at shaping time and shows up as pain at review and merge time.
+
+For each ticket, name what it explicitly does **not** do, especially anything cut during shaping. The `Non-goals` field exists to prevent scope creep during implementation when someone reading the ticket thinks "while we're in there…"
 
 Before invoking the `ticket` skill, show the user a proposal in chat and wait for explicit approval:
 
@@ -206,5 +225,6 @@ After all tickets are created, report the issue IDs and URLs in proposal order, 
 - Did I surface every load-bearing decision and resolve it?
 - Did I push back on things I disagreed with, or just go along?
 - If `altitude=challenge-framing`: did I question priority, root cause, and whether to build at all — not only implementation?
-- If `output=tickets`: did I outline **all** prereqs with assigned dispositions — or only the obvious ones?
+- If `output=tickets`: did I outline **all** prereqs with assigned dispositions — or only the obvious ones? Did I check whether the ticket bundles two independent concerns that should split?
+- Did I pressure-test the implementation complexity — propose a UX rebalance if the proposed approach is mechanically heavy?
 - If `output=spec-file`: could a stranger implement this without asking a clarifying question?
