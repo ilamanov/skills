@@ -1,9 +1,9 @@
 ---
-name: ui-patterns
-description: Generally-applicable UI/frontend best practices. Use whenever building, modifying, or reviewing UI — adding a form/button/dialog/modal, wiring keyboard shortcuts, creating any interactive surface that submits a form, or any time TSX/JSX is being written or edited. Consult BEFORE writing the code so the patterns are baked in, not retrofitted. If a scenario described in the skill body matches the work, apply the pattern — don't ask, just follow it (call out the choice in one line so the user can override).
+name: frontend-patterns
+description: Generally-applicable frontend/UI best practices. Use whenever building, modifying, or reviewing UI — adding a form/button/dialog/modal, wiring keyboard shortcuts, creating any interactive surface that submits a form, or any time TSX/JSX is being written or edited. Consult BEFORE writing the code so the patterns are baked in, not retrofitted. If a scenario described in the skill body matches the work, apply the pattern — don't ask, just follow it (call out the choice in one line so the user can override).
 ---
 
-# UI Patterns
+# Frontend Patterns
 
 Generally-applicable best practices for frontend work. **Read every pattern below. If any matches what you're about to build, apply it.** Don't ask permission for things that are codified here — just follow the rule and note in one line that you did.
 
