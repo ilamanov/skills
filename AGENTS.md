@@ -22,6 +22,10 @@ Skills the user wrote and maintains (e.g. `skills/ship/`, `skills/ticket/`, `ski
 - All skill improvements, refactors, new skills, and analysis-driven edits target this tree.
 - Follow the house style in `.agents/skills/skill-creator/SKILL.md` — explain the *why*, prefer reframing over MUST/NEVER stacks, keep prompts lean, bundle scripts for repeated work.
 
+## Skill description length limit
+
+Frontmatter `description` fields have a **1024-character maximum**. Skills exceeding it are silently filtered from the agent's available-skills list and never trigger. When writing or editing a skill, keep the description well under 1024 chars (target ~800 to leave headroom) and put detailed guidance in the body. If a skill is mysteriously not triggering, measure its description first.
+
 ## When in doubt
 
 If you're about to edit a SKILL.md and you can't tell from the path whether it's user-owned, check `skills-lock.json`. Any skill name listed there is external — leave it alone.
