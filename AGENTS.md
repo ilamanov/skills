@@ -26,6 +26,10 @@ Skills the user wrote and maintains (e.g. `skills/ship/`, `skills/ticket/`, `ski
 
 Frontmatter `description` fields have a **1024-character maximum**. Skills exceeding it are silently filtered from the agent's available-skills list and never trigger. When writing or editing a skill, keep the description well under 1024 chars (target ~800 to leave headroom) and put detailed guidance in the body. If a skill is mysteriously not triggering, measure its description first.
 
+## Don't break the frontmatter YAML
+
+The `description` is an unquoted YAML scalar — any `word: ` (word + colon + space) inside it parses as a nested mapping and silently breaks the install (`npx skills update` reports `No valid skills found`). Reword to avoid it (e.g. *"Auto-detects mode: DRAFT"* → *"Auto-detects whether the run is DRAFT"*); quoting works but is uglier. `https://` is fine (no space after colon).
+
 ## When in doubt
 
 If you're about to edit a SKILL.md and you can't tell from the path whether it's user-owned, check `skills-lock.json`. Any skill name listed there is external — leave it alone.

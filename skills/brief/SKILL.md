@@ -172,6 +172,7 @@ Before handing off, check the brief against its purpose:
 - Is every schema change accounted for line by line?
 - (FINAL) Inside each PR card, is every follow-up commit attributed to a cause and every skipped finding surfaced in its own warning-colored row — all on the card, not in a separate evolution section?
 - Did you claim a stack/review section that doesn't exist (or omit one that does)?
+- **Orphan check across the stack.** For every PR card, list the new top-level functions / components / exports it introduces, then verify each has at least one caller in the *same* PR's diff. Surface any orphan (introduced in PR N, first used in PR N+1) as a warning-colored row on the introducing PR's card — it means the PR added code "ahead of time" and the symbol should be moved down to the PR that first uses it. If a mermaid / dependency-graph visualization of the stack is rendered, orphan nodes show up as nodes with no incoming edge from anything else in the PR; call them out explicitly.
 - Anything padded? Tighten it.
 
 Then tell the user the brief is ready, where it is, and which mode you chose.

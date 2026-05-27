@@ -23,6 +23,15 @@ If none of the patterns below match the scenario, return to the original task wi
 
 - For desktop, `Cmd+Enter` should always "submit" — be it save, create, send, confirm, or any other primary action. `Cmd+Enter` should behave exactly as if clicking on the primary button manually (same disabled/loading/validation behavior, same side effects). Use `Ctrl+Enter` on Windows/Linux (`e.metaKey || e.ctrlKey`).
 - When you need to use a dialog, use `ResponsiveDialog` instead, which shows a Dialog on desktop and a Drawer on mobile. This is better UX for mobile because dialogs on mobile are not that great. If this component doesn't exist, then create one by using the Dialog and Drawer components from shadcn (mirror shadcn's `Dialog` API so it's a drop-in — `Content`, `Header`, `Title`, `Description`, `Footer`, `Trigger`, `Close`).
+- When rendering markdown content (chat messages, LLM output, comments, notes, any user/AI-authored text that may contain markdown), **never just dump the string into a `<div>` or `<p>` with `{text}` or `whitespace-pre-wrap`.** Use a real markdown renderer. Default to **`react-markdown`** with **`remark-gfm`** (tables, strikethrough, task lists, autolinks) **and `remark-breaks`** (so single `\n` becomes a `<br>` — without this, single newlines collapse and the output looks like a wall of run-on text, which is the failure mode agents repeatedly ship). For code blocks add `rehype-highlight` or `react-syntax-highlighter`. Install: `npm i react-markdown remark-gfm remark-breaks`. Minimal usage:
+  ```tsx
+  import ReactMarkdown from 'react-markdown';
+  import remarkGfm from 'remark-gfm';
+  import remarkBreaks from 'remark-breaks';
+
+  <ReactMarkdown remarkPlugins={[remarkGfm, remarkBreaks]}>{text}</ReactMarkdown>
+  ```
+  Do **not** use `dangerouslySetInnerHTML` with a hand-rolled regex replacer (`.replace(/\n/g, '<br>')` etc.) — it's an XSS hole and misses every other markdown construct. If the project already standardizes on a different renderer (`marked`, `markdown-it`, MDX), use that — but verify single-newline-to-`<br>` behavior is on (`breaks: true` in marked/markdown-it).
 
 ## How to behave when this skill applies
 
