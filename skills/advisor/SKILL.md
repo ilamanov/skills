@@ -181,6 +181,8 @@ But watch the inverse failure just as closely: a single ticket that quietly bund
 
 When any of those fire, split — even if it means one shaping conversation produces two ticket stacks. Bundling looks like efficiency at shaping time and shows up as pain at review and merge time.
 
+**Don't over-split either: no helpers-only or scaffolding-only tickets.** When ordering the slices, every ticket must deliver an observable piece of the work on its own. Helpers, types, utilities, and other plumbing ride along with the **first ticket that uses them** — don't propose a ticket whose only content is "extract helpers for the next ticket" or "add types that PR N+1 will consume". The user will see the orphan and ask you to fold it down. (Standalone *schema* tickets are the one exception — DB schema + migration with no in-ticket callers yet is fine and often preferable.) This mirrors the rule `ship` enforces at PR-split time; applying it at ticket-shaping time avoids the rework.
+
 For each ticket, name what it explicitly does **not** do, especially anything cut during shaping. The `Non-goals` field exists to prevent scope creep during implementation when someone reading the ticket thinks "while we're in there…"
 
 Before invoking the `ticket` skill, show the user a proposal in chat and wait for explicit approval:
