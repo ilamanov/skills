@@ -26,6 +26,7 @@ If none of the patterns below match the scenario, return to the original task wi
 - Whenever we are saving a social media link, it has to go through our auto-archiver (this mini-app will be added in the future).
   - If the auto-archiver doesn't exist in the codebase yet, do **not** silently store the raw link. Centralize all link-writes through a single helper (e.g. `saveLink(url, context)`) with a clearly-marked `TODO: route through auto-archiver once available`, so future wire-up is one change in one place.
 - Prefer the ORM for database work; avoid raw SQL whenever possible. Reach for raw SQL only when it's genuinely necessary (something the ORM can't express), and call out why in one line when you do.
+- Prefer server actions over API routes for mutations and form handling. Reach for an API route only when something genuinely requires it (e.g. a webhook receiver, a public/third-party HTTP endpoint, a non-form client that needs a REST/JSON surface). Consult the `next-best-practices` skill for guidance.
 - Never apply schema changes to the connected database without explicit user confirmation first. Editing schema **source** files (e.g. the Prisma/Drizzle schema) is fine, but before running anything that mutates the connected DB's schema — `pnpm db:generate`, `pnpm db:migrate`, `pnpm db:push`, or direct schema-mutating SQL — stop and ask the user to confirm. This is the one place in this skill where you **do** ask first rather than acting.
 
 ## How to behave when this skill applies

@@ -32,6 +32,9 @@ If none of the patterns below match the scenario, return to the original task wi
   <ReactMarkdown remarkPlugins={[remarkGfm, remarkBreaks]}>{text}</ReactMarkdown>
   ```
   Do **not** use `dangerouslySetInnerHTML` with a hand-rolled regex replacer (`.replace(/\n/g, '<br>')` etc.) — it's an XSS hole and misses every other markdown construct. If the project already standardizes on a different renderer (`marked`, `markdown-it`, MDX), use that — but verify single-newline-to-`<br>` behavior is on (`breaks: true` in marked/markdown-it).
+- **Prefer server components.** Add `'use client'` only when the component genuinely needs the browser — interactive state/effects (`useState`, `useEffect`, refs), event handlers, or browser-only APIs. Keep client boundaries as low in the tree as possible: push interactivity into small leaf components rather than marking a whole page/route `'use client'`.
+- **Style with Tailwind utilities and the project's existing design tokens; avoid custom CSS.** Reach for the configured tokens/theme (colors, spacing, radii, typography) rather than hard-coded values, and avoid one-off CSS files or inline `style={{…}}` unless there's something Tailwind genuinely can't express (call out why in one line when you do).
+- **Keep reusable design-system primitives under `components/ui/*`.** Generic, app-wide building blocks (buttons, inputs, dialogs, etc.) live there; feature-specific components do not (co-locate those with the feature — see the `codebase-conventions` skill).
 
 ## How to behave when this skill applies
 
