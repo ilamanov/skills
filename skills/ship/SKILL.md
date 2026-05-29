@@ -264,7 +264,7 @@ For **each PR** (bottom-up), run this loop until either the review agent returns
 6. **Act on the findings.**
 
    **For each Fix finding:**
-   - Make the change on the relevant branch. **Each finding gets its own commit** — don't batch multiple finding fixes into a single commit, and don't amend into prior commits. One finding → one focused commit with a message that references the finding it addresses. Use whatever Graphite-aware flow preserves the per-finding commit granularity — the Graphite skill knows the current commands.
+   - Make the change on the relevant branch. **Each finding gets its own commit** — don't batch multiple finding fixes into a single commit, and don't amend into prior commits. One finding → one focused commit with a message that references the finding it addresses. Use whatever Graphite-aware flow preserves the per-finding commit granularity — the Graphite skill knows the current commands. **Push these fix commits additively — never force-push and never squash** (see Rules). The whole point of one-commit-per-finding is that the user can review the PR commit by commit; a force-push or squash collapses them and defeats it.
    - **After each fix commit lands on the PR (i.e. is pushed):**
      1. Post a top-level PR comment summarizing the fix:
         ```bash
@@ -341,7 +341,8 @@ Short summary: ticket id, merged PR URLs, review findings skipped + reasons.
 ## Rules
 
 - No AI attribution in commits, PR titles, or PR bodies.
-- No force-push outside what Graphite does for restacking.
+- **Never force-push. This is a hard rule, not a default.** Do not run `git push --force` / `--force-with-lease`, and do not pass any force/squash flag to Graphite (`gt submit --force`, `gt submit --squash`, or equivalent). The **only** force-push allowed is the implicit one Graphite performs on its own during a `restack` to realign a branch onto its updated parent — that is internal to Graphite's stacking and you never invoke it directly. If a push is rejected as non-fast-forward, **stop and ask the user** — do not reach for `--force` to get past it.
+  - **Why this matters to the user:** force-pushing rewrites the branch and collapses the work into a single squashed commit, destroying the per-commit history. The user reviews changes **commit by commit** and needs every incremental change to remain a distinct, inspectable commit on the PR. A force-push throws that away. Each implementation step and each review-finding fix must stay as its own commit (see Step 6, point 6) — pushed additively, never rewritten.
 - No `--no-verify` unless the user asks.
 - Review-finding fixes always land as separate commits on the PR branch — never amend or fold them back into the original commit unless the user explicitly asks to squash.
 - If the plan turns out wrong mid-implementation, stop and re-confirm with the user.
