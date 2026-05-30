@@ -43,7 +43,7 @@ Copy this into the response and tick as work progresses:
 - [ ] 5b. Deslop the working tree
 - [ ] 5c. Review the full diff; decide whether to gate; if gating, generate the brief (DRAFT mode) + propose stack breakup — approved
 - [ ] 5d. Split the implemented changes into the Graphite stack
-- [ ] 6. Submit stack; review loop per PR until clean or user-approved
+- [ ] 6. Submit stack; per-PR loop until checks green + review clean (or user-approved)
 - [ ] 6e. Review complete → generate the brief (FINAL mode)
 - [ ] 7. User merge signal → generate migrations; merge bottom-up
 - [ ] 8. Linear → Done; clean up worktree; report
@@ -216,19 +216,21 @@ The active review agent for this project is **Codex** — the agent-specific bin
 
 Submit the stack via Graphite — one PR per branch, each opened as **ready for review** (not draft). Only fall back to draft if the user explicitly asks, or if something genuinely blocks the PR from being reviewable (e.g. a known-broken intermediate state the user wants to share for context). PR creation auto-triggers a review on each new PR.
 
+**Keep every PR green.** Checks run on creation and re-run on every push. Treat a red check like a review finding: read its logs (`gh pr checks`), fix it with an additive commit (new commit, never amend/force), and push — watch checks on the same tick as review comments, and don't wait to be told. If a check is red for something only the user can fix (flaky infra, a user-controlled secret), say so and hand it over rather than looping.
+
 **Before/after screenshots.** When a PR changes something user-visible, include before and after screenshots in its description — capture the after-state from the running app you exercised in Step 5a, and the before-state from `main`. Put them in the PR body where the visible change actually lands. Skip when there's nothing to see.
 
 **Embed them as GitHub attachment URLs — not repo file links.** Upload each image to GitHub (paste or drag it into the PR description editor, which mints a `user-attachments/assets/...` URL) and reference that URL in the body. Do **not** commit the screenshots to the branch and link them via `blob/...?raw=true` or other repo URLs: GitHub won't reliably render those inside a PR body — they resolve through authenticated/raw endpoints the rendered `<img>` can't fetch, especially on a private repo, so they show up as broken — and committing throwaway images bloats the diff. After editing the body, reload the PR and confirm the images actually render rather than appearing broken.
 
-For **each PR** (bottom-up), run this loop until either the review agent returns no actionable findings **or** the user gives a merge signal (Step 7) — whichever comes first:
+For **each PR** (bottom-up), run this loop until either the PR is clean — CI checks green **and** no actionable review findings — **or** the user gives a merge signal (Step 7), whichever comes first:
 
 1. **Wait for the review** to post. Latency is agent-specific — for Codex, ~6–7 min is typical. If the harness exposes a periodic-watcher mechanism (recurring scheduled check, polling loop, cron-style wake), set one up to fetch the PR's comments at that cadence and surface anything new from the review agent. Otherwise fall back to a single delayed wake (e.g. `ScheduleWakeup` at ~400s, kept under the prompt-cache TTL) and re-arm after each fetch.
 
-   **Watcher lifecycle:** the watcher exists **only to catch review findings** — it is not responsible for waiting on the user's merge approval. Create it once when the stack is first submitted, and keep it running across all PRs and rounds while findings work is outstanding.
+   **Watcher lifecycle:** the watcher exists **to catch review findings and failing checks** — it is not responsible for waiting on the user's merge approval. Create it once when the stack is first submitted, and keep it running across all PRs and rounds while findings or check fixes are outstanding.
 
-   **Per-PR review-complete condition.** A PR's review is complete for the watcher's purposes when any of:
+   **Per-PR review-complete condition.** A PR is complete for the watcher's purposes when any of:
    - It has been merged (no longer in the open set), or
-   - It is clean: review agent has reacted 👍 on the PR body **and** every finding raised so far has been resolved (fixed and pushed, or explicitly skipped), with no new findings on the most recent re-review.
+   - It is clean: **all CI checks are green**, the review agent has reacted 👍 on the PR body, **and** every finding raised so far has been resolved (fixed and pushed, or explicitly skipped), with no new findings on the most recent re-review.
 
    **Tear down the watcher** when **all** PRs in its scope are review-complete (the condition must hold across every PR being watched — not just one). Whenever a single PR becomes review-complete, narrow the watcher's scope to drop that PR but keep watching the rest; stop the watcher entirely once nothing is left to watch. **Don't keep the watcher alive just to wait for the user's merge approval** — once findings are done, stop it, report that review is complete, and leave the merge (Step 7) for the user to trigger on their own time.
 
@@ -265,7 +267,7 @@ For **each PR** (bottom-up), run this loop until either the review agent returns
 
 5. **Triage autonomously and report — but stop and ask whenever you're not sure.** For findings you have a confident position on, decide Fix vs. Skip yourself and act on them (point 6) without waiting. But if the realism check left you genuinely unsure — most often a backward-compat finding where you can't confirm whether existing usage must be preserved — **don't pick a side to keep the loop moving.** Break the loop: pause and ask the user about those specific findings before acting on them; the rest of the round proceeds in parallel. Verifying costs a message; guessing wrong costs a bad fix or a shipped regression. Post a status message either way so the user can interject. Format:
    - **Context header** at the very top: ticket id + title, a one-line summary of what this stack is shipping, and a compact list of the PRs (slug + URL). The user shouldn't need to open anything to recall the scope.
-   - **Per-PR review status**: for each PR, one of `clean` (review agent reacted 👍 on the PR body), `findings: N` (with N findings to address this round), `awaiting review`, or `re-review pending` (after a retrigger).
+   - **Per-PR review status**: for each PR, one of `clean` (review agent reacted 👍 on the PR body), `findings: N` (with N findings to address this round), `awaiting review`, or `re-review pending` (after a retrigger). Note CI state here too (e.g. `checks: 2 failing`) so a red PR is visible alongside its review state.
    - **Findings this round** with the agent's autonomous Fix/Skip decision + one-line reason + source link. New-this-round and carried-over both shown for clarity. Skip findings appear once and are not carried forward.
    - **Next action**: "fixing the N valid findings, recording N skips on the PR, and retriggering review" (or "no fixes — recording N skips on the PR and retriggering review", or "no actionable findings and no skips — waiting for next watcher tick"). If any findings are held for the user, say so explicitly here — e.g. "holding M findings for your call on whether existing usage must be preserved; acting on the rest" — and make clear those M are blocked pending the user's answer.
 
@@ -331,7 +333,7 @@ When approved:
 
    Then assess whether applying the migration **before** merging makes sense (e.g. the new code expects the schema and would break in shared environments otherwise; or the migration carries non-trivial transformations worth dry-running first). If yes, ask the user to confirm applying. **Block the merge until the user explicitly approves or declines applying.** If approved, apply via the project's standard apply command. If declined, proceed to merge with the migration file committed but unapplied.
 
-2. **Merge bottom-up via Graphite.** Merge the trunk-most PR first; Graphite restacks descendants automatically so each subsequent PR's base becomes `main`. Repeat until the stack is empty.
+2. **Merge bottom-up via Graphite.** Confirm each PR's checks are green before merging it — the step-1 migration commit re-runs CI and can turn a green PR red. Fix red checks first; never silently merge red. Then merge the trunk-most PR first; Graphite restacks descendants automatically so each subsequent PR's base becomes `main`. Repeat until the stack is empty.
 3. **Apply the final Linear status transition** (see table above) and post the merge-complete log comment (see log table above).
 4. **Clean up local branches.** Prune branches that were merged into `main` (Graphite has a sync command for this). Then remove any leftover local branches that are no longer needed.
 5. **Clean up the worktree — conditionally.** Only remove it if the agent **created** it in Step 4. If the agent **reused** an existing worktree (the harness provided it), **leave it alone** — the harness owns that worktree's lifecycle and will tear it down itself.
@@ -361,3 +363,4 @@ Short summary: ticket id, merged PR URLs, review findings skipped + reasons.
 - If Linear MCP is unreachable mid-flow, surface the would-be status change in chat and ask the user to update Linear.
 - PR titles use conventional commits (`feat(scope): …`). PR bodies include `Closes <LINEAR-ID>` so Linear auto-closes on merge.
 - PR bodies for UI-affecting changes include **before/after screenshots** of the changed view (see Step 6). Omit only when there's nothing user-visible to show.
+- **Every PR stays green.** Fix failing CI checks with additive commits until they pass; a red PR is neither review-complete nor merge-ready (see Step 6). Only the user can waive a check that can't be fixed from the code.
