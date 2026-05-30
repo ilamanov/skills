@@ -128,7 +128,7 @@ How to generate one:
 
 **Worked example.** A chat app runs one long task at a time. The user wants to keep sending messages while a task is in flight, without losing them. The general version is a backend *turn queue* — persist each message as pending, preserve ordering, drain the queue when the task finishes, plus a schema change to track queued turns. Stateful and expensive.
 
-Accept one assumption: the user is on a single browser and isn't hopping tabs or devices, so losing buffered messages on a refresh or device-switch is an edge case nobody cares about. Now the queue doesn't need a backend at all — the browser buffers the messages locally and submits them as one batch when the current task finishes. The backend stays stateless (it genuinely has no queue); the client does the queuing before submission. Same experience for a fraction of the work, and the only thing still worth real care is preserving message order within the batch.
+Accept one assumption: the user stays on a single browser. Then the queue doesn't need a backend at all — the browser buffers the messages in local storage and submits them as one batch when the current task finishes. Because the buffer is persisted, it survives a refresh or tab close: a returning user still has the messages queued. The only thing lost is switching to a different browser or device — an edge case nobody cares about. The backend stays stateless (it genuinely has no queue); the client does the queuing before submission. Same experience for a fraction of the work, and the only thing still worth real care is preserving message order within the batch.
 
 The shape to hunt for: a behavioral assumption that lets an entire backend subsystem evaporate onto the client.
 
