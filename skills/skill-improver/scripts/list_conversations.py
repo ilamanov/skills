@@ -75,6 +75,12 @@ def parse_args():
     p.add_argument("--limit", type=int, default=0, help="Truncate output to N records")
     p.add_argument("--update-state", action="store_true",
                    help="Advance state cursors based on this run's results")
+    p.add_argument("--from-batch", metavar="PATH",
+                   help="With --update-state, advance cursors to the newest started_at per "
+                        "project/source found in this JSONL batch file (the output saved in "
+                        "Step 1) instead of re-scanning live. Use this so conversations that "
+                        "arrive between the Step 1 pull and the Step 5b cursor-advance aren't "
+                        "skipped — the cursor should only move past what was actually analyzed.")
     p.add_argument("--full-prompt", action="store_true",
                    help="Emit untruncated first_user_prompt")
     return p.parse_args()
@@ -352,15 +358,28 @@ def main():
             out["first_user_prompt"] = re.sub(r"\s+", " ", prompt).strip()[:240]
         print(json.dumps(out, ensure_ascii=False))
 
-    if args.update_state and results:
-        for rec in results:
-            cursors.setdefault(rec["project"], {})
-            prev = cursors[rec["project"]].get(rec["source"])
-            if not prev or rec["started_at"] > prev:
-                cursors[rec["project"]][rec["source"]] = rec["started_at"]
-        state["projects"] = cursors
-        state["last_run_at"] = datetime.utcnow().isoformat() + "Z"
-        save_json(args.state, state)
+    if args.update_state:
+        # Advance only to what was actually analyzed. A separate live re-scan here
+        # would sweep up conversations that landed between the Step 1 pull and now,
+        # moving the cursor past them even though no one read them — they'd never be
+        # analyzed. So when the caller hands us the analyzed batch, key the cursor off
+        # that; fall back to this invocation's own results only if no batch is given.
+        advance_records = results
+        if args.from_batch:
+            with open(args.from_batch) as fh:
+                advance_records = [json.loads(line) for line in fh if line.strip()]
+        if advance_records:
+            for rec in advance_records:
+                proj, src = rec.get("project"), rec.get("source")
+                if not proj or not src:
+                    continue
+                cursors.setdefault(proj, {})
+                prev = cursors[proj].get(src)
+                if not prev or rec["started_at"] > prev:
+                    cursors[proj][src] = rec["started_at"]
+            state["projects"] = cursors
+            state["last_run_at"] = datetime.utcnow().isoformat() + "Z"
+            save_json(args.state, state)
 
     print(f"# {len(results)} records", file=sys.stderr)
 
