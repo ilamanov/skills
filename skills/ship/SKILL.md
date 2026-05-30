@@ -148,6 +148,8 @@ The PR stack is a **post-hoc** organization of the work, not a prediction of it.
 
 Read affected code as needed and implement the full feature on the single working branch from Step 4. **Do not commit during implementation** — keep all changes in the working tree. Iterate until lint/typecheck/tests pass against the uncommitted state.
 
+**Lint, typecheck, and tests passing means the code is well-formed — not that the feature works.** For a change with observable behavior — a UI interaction, a rendered view, an endpoint's response — actually exercise it: drive the route, render the component, call the endpoint, and confirm it does what the ticket asked. When you can't reach the behavior — the route sits behind auth and the dev session bounces you to `/`, the change needs data you haven't seeded, an external service isn't wired up — don't quietly let a green lint stand in for verification. Either get past the blocker (sign the dev session in, seed the data, or add a focused test that exercises the behavior directly) or tell the user plainly what you couldn't verify and why, so they can confirm it before merging. A UI change that lints clean but was never run looks finished and reaches review broken — which is how it comes back as a review finding or a post-merge surprise.
+
 **Hold migrations.** Don't generate migration files yet (Prisma `migrate dev`, Drizzle `drizzle-kit generate`, Rails `db:migrate`, Django `makemigrations`, etc.). Schema source files (`prisma/schema.prisma`, `db/schema.ts`, etc.) can change freely; numbered migrations are generated at merge time (Step 7) so they don't collide with parallel work.
 
 ### 5b. Deslop the working tree (only if the `deslop` skill is present)

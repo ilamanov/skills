@@ -252,11 +252,11 @@ Two cursors persist across runs on `main` and both live in tracked files:
 The only way to land them without pushing to `main` directly is to include them in the same PR as the rest of the run. So advance both **before** committing in Step 6 — never leave them dirty in the working tree.
 
 ```bash
-python3 "$SKILL_DIR/scripts/list_conversations.py" --update-state > /dev/null
-python3 "$SKILL_DIR/scripts/list_briefs.py" --update-state > /dev/null
+python3 "$SKILL_DIR/scripts/list_conversations.py" --update-state --from-batch /tmp/skill-improver-batch.jsonl > /dev/null
+python3 "$SKILL_DIR/scripts/list_briefs.py" --update-state --from-batch /tmp/skill-improver-briefs.jsonl > /dev/null
 ```
 
-Each script idempotently advances its own state file to the newest value per project seen in this batch. The resulting working-tree changes are part of the commit in Step 6.
+Each script advances its own state file to the newest value per project **seen in the Step 1 / Step 3b batch** — that's what `--from-batch` enforces, pointing each script at the JSONL it emitted earlier. This matters because Step 5b runs much later than the pull: without `--from-batch`, `--update-state` re-scans live and moves the cursor past any conversation or brief that arrived in between, so it never gets analyzed. Pass the batch files and the cursor only ever moves past what you actually read. The resulting working-tree changes are part of the commit in Step 6.
 
 **If the run aborts before Step 6** (push rejected, gh error, etc.), discard both state changes so the next run re-analyzes the same batch:
 

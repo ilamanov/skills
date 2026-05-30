@@ -63,6 +63,12 @@ def parse_args():
     p.add_argument("--limit", type=int, default=0, help="Truncate output to N records")
     p.add_argument("--update-state", action="store_true",
                    help="Advance state cursors based on this run's results")
+    p.add_argument("--from-batch", metavar="PATH",
+                   help="With --update-state, advance cursors to the newest mtime per project "
+                        "found in this JSONL batch file (the Step 3b output) instead of "
+                        "re-discovering live. Use this so briefs that arrive between the pull "
+                        "and the cursor-advance aren't skipped — the cursor should only move "
+                        "past what was actually audited.")
     return p.parse_args()
 
 
@@ -194,8 +200,26 @@ def main():
         sys.stdout.write(json.dumps(r) + "\n")
 
     if args.update_state:
+        # Advance only to what was actually audited. Re-discovering live here would
+        # sweep up briefs written between the Step 3b pull and now, moving the cursor
+        # past them even though no one audited them. When the caller hands us the
+        # audited batch, key the cursor off that; otherwise fall back to this scan.
+        advance_max = new_max_per_project
+        if args.from_batch:
+            advance_max = {}
+            with open(args.from_batch) as fh:
+                for line in fh:
+                    if not line.strip():
+                        continue
+                    rec = json.loads(line)
+                    name, mt = rec.get("project"), parse_iso(rec.get("mtime"))
+                    if not name or mt is None:
+                        continue
+                    prev = advance_max.get(name)
+                    if prev is None or mt > prev:
+                        advance_max[name] = mt
         projects_state = state.setdefault("projects", {})
-        for name, mt in new_max_per_project.items():
+        for name, mt in advance_max.items():
             projects_state.setdefault(name, {})["last_mtime"] = iso_z(mt)
         state["last_run_at"] = iso_z(datetime.now(timezone.utc))
         save_json(args.state, state)
