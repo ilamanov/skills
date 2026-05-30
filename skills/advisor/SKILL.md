@@ -1,6 +1,6 @@
 ---
 name: advisor
-description: Shape a rough plan, idea, or feature request into something concrete by working through it like a smart cross-functional advisor with strong instincts across engineering, product, design, ops, and business. Walks the design tree alongside the user, recommends answers, pushes back on weak assumptions, grounds claims in the actual codebase, and surfaces load-bearing (hard-to-reverse) decisions before they get baked in. Use whenever the user wants to stress-test a plan, flesh out a vague idea, get a second opinion on a design, scope a feature into tickets, write a spec, or just think through something out loud — including phrasings like "grill me", "challenge this", "help me think through X", "I want to build Y", "flesh this out", "shape this up", "write a spec", or "what do you think of..."
+description: Shape a rough plan, idea, or feature request into something concrete by working through it like a smart cross-functional advisor with strong instincts across engineering, product, design, ops, and business. Walks the design tree alongside the user, recommends answers, pushes back on weak assumptions, grounds claims in the actual codebase, and surfaces load-bearing (hard-to-reverse) decisions before they get baked in. Use whenever the user wants to stress-test a plan, flesh out a vague idea, get a second opinion on a design, scope a feature into tickets, write a spec, or just think through something out loud — including phrasings like "grill me", "challenge this", "help me think through X", "I want to build Y", "flesh this out", "shape this up", "write a spec", "what do you think of...", or "what's the cheap 80% / lazy version here"
 ---
 
 # Advisor
@@ -111,6 +111,26 @@ A proposed implementation often inherits hidden assumptions about UX that make i
 Concrete example: *"resumable bulk import that picks up where it left off across failures"* vs *"import the first N items synchronously; then show a 'import the rest?' prompt that kicks off a fresh job"*. The second eliminates an entire subsystem (no resume state, no failure-recovery branch, no background reconciliation) and the visible checkpoint is often a better experience than an invisible auto-resume.
 
 When the proposed approach has one of those expensive shapes, name it explicitly and propose the simpler alternative before the ticket gets written around the complex shape. Once a ticket says "resumable", the implementer will build resumability — and the time to push back is gone. This is one of the highest-leverage moves the skill makes: a single question during shaping can cut weeks of implementation and review.
+
+### Trading completeness for a cheap assumption (the "cheap 80")
+
+A close cousin of the move above. Some requirements are expensive only because they're stated at full generality. Before building the general version, look for a simplifying assumption the user can genuinely live with — one that, once accepted, lets most of the value be delivered on a far cheaper surface. The target is ~80% of the value for ~10% of the effort.
+
+This is a **named, triggerable** move: when the user says *"cheap 80"*, *"80/10"*, or *"what's the lazy version here?"*, stop and produce one — or a few — such tradeoffs and let them pick the right one. It's also worth offering unprompted whenever a requirement is about to drag in a heavy subsystem.
+
+How to generate one:
+
+1. **Name the expensive requirement and the surface it forces.** What does the full-generality version drag in — a new schema, a state machine, distributed coordination, background reconciliation?
+2. **Find the assumption that would let you drop it.** Usually an assumption about user behavior or environment: "the user is on one device," "files are under 10MB," "this runs once a day, not continuously." Write it down as an *explicit* assumption, not a silent one.
+3. **Enumerate exactly what breaks under that assumption — and confirm the user doesn't care.** List the cases the assumption fails in. If they're all true edge cases the user is happy to lose (and you've said so out loud, not glossed it), the assumption holds. If even one is load-bearing, the cheap version is wrong — drop it. This step is the whole discipline: a "cheap 80" that quietly sacrifices something load-bearing is just a bug.
+4. **Move the work to the surface that's trivially correct under the assumption.** Often this means pushing it off the expensive surface (backend, shared state) onto a cheap one (the client, a single request) where, given the assumption, it's nearly free.
+5. **Present it as an honest tradeoff:** "We give up X — which only matters when Y, and we've agreed we don't care about Y — and in exchange we delete subsystem Z." Offer one or a few; let the user pick. Don't smuggle the assumption in unstated.
+
+**Worked example — queueing messages sent during an active workflow** (Pixelle, PXL-96 shaping). The requirement: let the user keep sending messages while the persona is busy on a long task, without losing them. The full-generality version is a backend *turn queue* — persist each message as pending, hold ordering, return `202`, drain the queue when the run finishes, plus a schema change to track queued turns. Expensive, and it makes the backend stateful in a new way.
+
+The steer that collapsed it: assume **the user is on a single browser and isn't hopping tabs or devices** — losing buffered messages on a tab-close, refresh, or device-switch is a tiny edge case nobody cares about. Under that assumption the queue doesn't need to live on the backend at all. The browser **buffers** the follow-up messages locally and submits them as one batch when the active workflow finishes. The backend keeps pretending it has no queue (which is true — it doesn't); the client does the "manual" queuing *before* submission. Same end-user experience (send freely while busy), a fraction of the effort: no pending-turn schema, no drain logic, no `202` path. The one thing still worth real care is **ordering** — keep the batched messages as an ordered array of user turns rather than collapsing them into one.
+
+That's the shape to hunt for: a behavioral assumption that lets an entire backend subsystem evaporate onto the client.
 
 ### Checking the request from multiple angles
 
@@ -229,4 +249,5 @@ After all tickets are created, report the issue IDs and URLs in proposal order, 
 - If `altitude=challenge-framing`: did I question priority, root cause, and whether to build at all — not only implementation?
 - If `output=tickets`: did I outline **all** prereqs with assigned dispositions — or only the obvious ones? Did I check whether the ticket bundles two independent concerns that should split?
 - Did I pressure-test the implementation complexity — propose a UX rebalance if the proposed approach is mechanically heavy?
+- Did I look for a "cheap 80" — a simplifying assumption that collapses an expensive requirement onto a cheaper surface — and name what it gives up?
 - If `output=spec-file`: could a stranger implement this without asking a clarifying question?
