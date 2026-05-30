@@ -212,6 +212,8 @@ The active review agent for this project is **Codex** — the agent-specific bin
 
 Submit the stack via Graphite — one PR per branch, each opened as **ready for review** (not draft). Only fall back to draft if the user explicitly asks, or if something genuinely blocks the PR from being reviewable (e.g. a known-broken intermediate state the user wants to share for context). PR creation auto-triggers a review on each new PR.
 
+**Before/after screenshots.** When a PR changes something user-visible, include before and after screenshots in its description — capture the after-state from the running app you exercised in Step 5a, and the before-state from `main`. Put them in the PR body where the visible change actually lands. Skip when there's nothing to see.
+
 For **each PR** (bottom-up), run this loop until either the review agent returns no actionable findings **or** the user gives a merge signal (Step 7) — whichever comes first:
 
 1. **Wait for the review** to post. Latency is agent-specific — for Codex, ~6–7 min is typical. If the harness exposes a periodic-watcher mechanism (recurring scheduled check, polling loop, cron-style wake), set one up to fetch the PR's comments at that cadence and surface anything new from the review agent. Otherwise fall back to a single delayed wake (e.g. `ScheduleWakeup` at ~400s, kept under the prompt-cache TTL) and re-arm after each fetch.
@@ -352,3 +354,4 @@ Short summary: ticket id, merged PR URLs, review findings skipped + reasons.
 - If the plan turns out wrong mid-implementation, stop and re-confirm with the user.
 - If Linear MCP is unreachable mid-flow, surface the would-be status change in chat and ask the user to update Linear.
 - PR titles use conventional commits (`feat(scope): …`). PR bodies include `Closes <LINEAR-ID>` so Linear auto-closes on merge.
+- PR bodies for UI-affecting changes include **before/after screenshots** of the changed view (see Step 6). Omit only when there's nothing user-visible to show.

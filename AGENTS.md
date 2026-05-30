@@ -30,6 +30,10 @@ Frontmatter `description` fields have a **1024-character maximum**. Skills excee
 
 The `description` is an unquoted YAML scalar — any `word: ` (word + colon + space) inside it parses as a nested mapping and silently breaks the install (`npx skills update` reports `No valid skills found`). Reword to avoid it (e.g. *"Auto-detects mode: DRAFT"* → *"Auto-detects whether the run is DRAFT"*); quoting works but is uglier. `https://` is fine (no space after colon).
 
+## Keep guidance lean and non-prescriptive
+
+Write the *why* and the *what*, not step-by-step *how*. Don't spell out specific commands, flags, or exact output formats — they go stale, and the agent can work them out from context. Trust the reader: one clear sentence beats a bulleted procedure. When you catch yourself enumerating commands or templating exact syntax, cut it back to intent.
+
 ## When in doubt
 
 If you're about to edit a SKILL.md and you can't tell from the path whether it's user-owned, check `skills-lock.json`. Any skill name listed there is external — leave it alone.
