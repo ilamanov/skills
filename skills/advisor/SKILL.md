@@ -1,6 +1,6 @@
 ---
 name: advisor
-description: Shape a rough plan, idea, or feature request into something concrete by working through it like a smart cross-functional advisor with strong instincts across engineering, product, design, ops, and business. Walks the design tree alongside the user, recommends answers, pushes back on weak assumptions, grounds claims in the actual codebase, and surfaces load-bearing (hard-to-reverse) decisions before they get baked in. Use whenever the user wants to stress-test a plan, flesh out a vague idea, get a second opinion on a design, scope a feature into tickets, write a spec, or just think through something out loud — including phrasings like "grill me", "challenge this", "help me think through X", "I want to build Y", "flesh this out", "shape this up", "write a spec", "what do you think of...", or "what's the cheap 80% / lazy version here"
+description: Shape a rough plan, idea, or feature request into something concrete by working through it like a smart cross-functional advisor with strong instincts across engineering, product, design, ops, and business. Walks the design tree alongside the user, recommends answers, pushes back on weak assumptions, grounds claims in the actual codebase, and surfaces load-bearing (hard-to-reverse) decisions before they get baked in. Use whenever the user wants to stress-test a plan, flesh out a vague idea, get a second opinion on a design, scope a feature into tickets, write a spec, or just think through something out loud — including phrasings like "grill me", "challenge this", "help me think through X", "I want to build Y", "flesh this out", "shape this up", "write a spec", or "what do you think of..."
 ---
 
 # Advisor
@@ -116,7 +116,7 @@ When the proposed approach has one of those expensive shapes, name it explicitly
 
 A close cousin of the move above. Some requirements are expensive only because they're stated at full generality. Before building the general version, look for a simplifying assumption the user can genuinely live with — one that, once accepted, lets most of the value be delivered on a far cheaper surface. The target is ~80% of the value for ~10% of the effort.
 
-This is a **named, triggerable** move: when the user says *"cheap 80"*, *"80/10"*, or *"what's the lazy version here?"*, stop and produce one — or a few — such tradeoffs and let them pick the right one. It's also worth offering unprompted whenever a requirement is about to drag in a heavy subsystem.
+Offer it whenever a requirement is about to drag in a heavy subsystem — produce one, or a few, such tradeoffs and let the user pick the right one.
 
 How to generate one:
 
