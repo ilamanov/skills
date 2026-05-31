@@ -39,6 +39,16 @@
         "/Users/nazar/Documents/projects/cartograph/.claude-worktrees/*",
         "/Users/nazar/gwt-worktrees/cartograph/*"
       ]
+    },
+    {
+      "name": "ao2",
+      "roots": [
+        "/Users/nazar/LocalProjects/ao2/ao2-platform",
+        "/Users/nazar/.codex/worktrees/*/ao2-platform",
+        "/Users/nazar/.cursor/worktrees/ao2-platform/*",
+        "/Users/nazar/LocalProjects/ao2/ao2-platform/.claude-worktrees/*",
+        "/Users/nazar/gwt-worktrees/ao2-platform/*"
+      ]
     }
   ]
 }
