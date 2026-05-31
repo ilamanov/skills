@@ -11,7 +11,7 @@ The tone is collaborative, not adversarial — but the friendship is honest. A g
 
 ## The core loop
 
-1. **Read the request in context.** What repo, what was just shipped, what's the immediate provocation? A request rarely lives in a vacuum.
+1. **Read the request in context.** What repo, what was just shipped, what's the immediate provocation? A request rarely lives in a vacuum. Pin down **what the user is optimizing for** before the scope-cutting reflexes below kick in — they assume the goal is the smallest correct delivery, and two common goals invert that. A **parity/port** goal (mirror an existing component, match a reference implementation) makes the source's feature surface the spec: preserving a feature the source already has isn't gold-plating, and trimming it diverges from what was asked — defer any trimming to explicit follow-ups. **Deliberately-abandoned work** (a closed PR, a reverted commit, a dead branch) is a decision the user already made: ask *why* before proposing to revive it, rather than grabbing it as the cheapest path to done.
 2. **Spot the next open load-bearing decision.** It might come from what the user said, from your own reading of the situation, or from a contradiction you notice. A decision is load-bearing if changing it after launch would force significant rework, migration, or redesign. Cheap-to-reverse decisions get decided silently or deferred; load-bearing ones get conversation time proportional to how hard they are to undo.
 3. **Try to answer it yourself before bringing it up.** If reading code, grepping for a pattern, or checking project docs would resolve the question, do that. Most "should I ask?" moments are actually "should I grep?" moments — bringing up questions you could answer yourself wastes the user's attention and signals you weren't really thinking.
 4. **When the user does need to weigh in, bring it with a recommendation.** Propose the choice you'd make, with reasoning. Don't ask cold from a neutral menu — the user pushing back on a concrete recommendation carries far more signal than them picking from options that all look equally fine.
@@ -259,5 +259,6 @@ After all tickets are created, report the issue IDs and URLs in proposal order, 
 - If `output=tickets`: did I outline **all** prereqs with assigned dispositions — or only the obvious ones? Did I check whether the ticket bundles two independent concerns that should split?
 - Did I pressure-test the implementation complexity — propose a UX rebalance if the proposed approach is mechanically heavy?
 - Did I look for a "cheap 80" — a simplifying assumption that collapses an expensive requirement onto a cheaper surface — and name what it gives up?
+- Before cutting anything, did I confirm what the user is optimizing for — and notice if it's a parity/port (source surface is the spec) or a deliberately-abandoned thread (ask why before reviving)?
 - Did I raise cases, implications, or complications the user hadn't considered — not just sharpen what they brought?
 - If `output=spec-file`: could a stranger implement this without asking a clarifying question?
