@@ -230,12 +230,15 @@ When in doubt, lean toward no-op. A state-only PR (or no PR at all) is always pr
 ### Step 5 — Make the edits in a feature branch
 
 ```bash
-cd "$(git -C "$CLAUDE_PROJECT_DIR" rev-parse --show-toplevel)"
+REPO="$(git -C "${CLAUDE_PROJECT_DIR:-$PWD}" rev-parse --show-toplevel)"
+cd "$REPO"
 git checkout -b skill-improver/run-$(date -u +%Y%m%d-%H%M%S)
 # Step 0's npx skills update changes (if any) are already in the working tree —
 # they'll be included in the same commit. Now apply analysis-driven edits.
 # apply edits to skills/<name>/SKILL.md ...
 ```
+
+**Edit the same checkout you branched in — this is a real trap.** Resolve `$REPO` once (above) and prefix *every* file edit with it (`$REPO/skills/<name>/SKILL.md`), including the path passed to file-editing tools — not just `cd`. When this skill runs under a feature worktree (common — the harness spawns one, and `CLAUDE_PROJECT_DIR` is often unset, so the fallback resolves to that worktree), that worktree **is** the repo root. A past run branched correctly in the worktree but passed the *main* checkout's absolute path to its `Edit` calls, so the changes silently landed on `main`'s working tree and the feature branch's diff came back empty. Guard against it: **after the first edit, run `git diff --stat` and confirm it is non-empty before continuing.** An empty diff means you edited the wrong checkout — never edit files under the main checkout path while working in a worktree.
 
 Scope rules:
 - Analysis-driven edits target **only `skills/<name>/`** (user-owned skills). Never edit anything under `.agents/skills/` or `.claude/skills/` — those are upstream and only change via `npx skills update`. If a finding clearly points at an external meta-skill (e.g. skill-creator gave bad advice), record it in the PR's "Considered but not changed" section and tag it as `upstream:<skill-name>` so the user can decide whether to file an issue upstream.
@@ -382,3 +385,5 @@ When self-improving, the same Step 5-7 rules apply: PR, explain, do not auto-mer
 ## Scheduling
 
 This skill is designed to be invoked by a cron job (Claude `/schedule` or a codex automation). The simplest setup is a daily run, but adjust to taste — more frequent runs mean smaller batches and faster feedback, less frequent means more context per finding. The script's 7-day first-run window means even an unattended first fire is bounded.
+
+**Entry point under the scheduler.** The scheduled task says "Run the skill-improver skill," but this skill lives in the skills repo at `skills/skill-improver/SKILL.md` — it is *not* registered as an invocable Skill, so attempting to load it by name fails ("Unknown skill") in both Claude and codex. Don't treat that as a dead end: locate this file directly and follow it. If `CLAUDE_PROJECT_DIR` is unset (common under the scheduler), glob for `skills/skill-improver/config.json` under the known skills-repo roots in `config.json` to find the repo, then read the `SKILL.md` next to it. This has cost two consecutive runs a couple of wasted turns at startup.
