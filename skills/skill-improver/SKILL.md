@@ -254,6 +254,8 @@ Two cursors persist across runs on `main` and both live in tracked files:
 
 The only way to land them without pushing to `main` directly is to include them in the same PR as the rest of the run. So advance both **before** committing in Step 6 — never leave them dirty in the working tree.
 
+**First, check whether a prior run's PR is still open** — `gh pr list --state open --json number,headRefName | grep skill-improver/run`. A still-open prior PR already advances both cursors through its own run, so advancing them again here produces a second PR that collides with it on these exact state files — pure reviewer noise, and a merge conflict when the first one lands. When a prior-run PR is open, **skip the cursor advance entirely** (let that open PR land the cursors) and don't run the `--update-state` commands below. Only continue to Step 6 if this run produced a *new* skill edit not already in the open PR — and that PR must touch `skills/<name>/SKILL.md` only, leaving the state files alone. With no new edit, this is a no-op run: report that PR #N is still awaiting merge and stop without opening a PR. The next run re-reads the same batch, which is cheap and safe.
+
 ```bash
 python3 "$SKILL_DIR/scripts/list_conversations.py" --update-state --from-batch /tmp/skill-improver-batch.jsonl > /dev/null
 python3 "$SKILL_DIR/scripts/list_briefs.py" --update-state --from-batch /tmp/skill-improver-briefs.jsonl > /dev/null
