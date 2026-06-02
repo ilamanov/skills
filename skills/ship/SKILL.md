@@ -361,7 +361,7 @@ Short summary: ticket id, merged PR URLs, review findings skipped + reasons.
 - No `--no-verify` unless the user asks.
 - Review-finding fixes always land as separate commits on the PR branch — a new commit and `gt submit`, **never `gt modify`**/amend/squash unless the user explicitly asks. (`gt modify` is the `graphite` skill's default for shaping an unsubmitted stack; it doesn't apply once the stack is in review.)
 - If the plan turns out wrong mid-implementation, stop and re-confirm with the user.
-- If the Linear MCP is unreachable or returns an auth error (e.g. `401: Reauthentication required`), don't retry into the same wall. Say so once, tell the user how to reconnect, and — when they already named a specific ticket — offer to proceed on the scope they gave (or ask them to paste the ticket body), queuing the status transitions and log comments to apply once Linear is back. Blocking the whole run on the connector just makes the user re-run into the same failure.
+- If Linear MCP is unreachable mid-flow, surface the would-be status change in chat and ask the user to update Linear.
 - PR titles use conventional commits (`feat(scope): …`). PR bodies include `Closes <LINEAR-ID>` so Linear auto-closes on merge.
 - PR bodies for UI-affecting changes include **before/after screenshots** of the changed view (see Step 6). Omit only when there's nothing user-visible to show — an empty view from missing data means mock up data, not skip.
 - **Every PR stays green.** Fix failing CI checks with additive commits until they pass; a red PR is neither review-complete nor merge-ready (see Step 6). Only the user can waive a check that can't be fixed from the code.
