@@ -7,6 +7,11 @@ description: Runs a project's scheduled health checks in order — syncing the m
 
 Run the scheduled health checks for this project, in order. Each check is **independent** — if one can't complete (a tool is missing, a command fails, access is denied), report what went wrong and continue to the next check. Never let one failed check abort the rest. Post a short summary at the end covering every check.
 
+**Reaching the summary is the run.** The whole point of an unattended run is the final three-check report (and Check 3's ticket proposal) — a run that stops before emitting it has failed, even if it did real work. Two traps cause this, both seen in real runs:
+
+- **Stopping early when there's nothing to do.** "Check 1: main already up to date" is not the end of the run — it's the *fastest* path to Check 2. After any check finishes (including a no-op), immediately move to the next one and don't wrap up until all three are reported.
+- **Running out of context.** Don't start long commands (`git fetch`, `npx skills update`) in the background and poll them one yield at a time — that quietly burns the whole context window before Check 3. Run them to completion in a single foreground call (e.g. `git fetch origin && git merge --ff-only origin/main`). In Check 3, gather just enough to choose — a shortlist of candidates — rather than fetching every ticket's full detail; produce the proposal as soon as a clear recommendation exists.
+
 ## Inputs
 
 These are provided when the skill is invoked — don't hardcode them:

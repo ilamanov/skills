@@ -58,6 +58,8 @@ Be precise about which is which — they're treated very differently:
 
 ## The run
 
+> **You are already running this skill — do not try to load it by name.** This file is not a registered Skill, so calling the `Skill` tool with `skill-improver` (or globbing the filesystem to "find" it) fails and wastes the first few turns. If the scheduler said "Run the skill-improver skill," that means *follow this file* — you're reading it now. Skip discovery and go straight to Step 0. (Two consecutive runs burned turns on a failed `Skill` call plus a `find` pass before reading this; the note used to live only at the bottom, too late to prevent it.)
+
 ### Step 0 — Pre-flight: sync main, then refresh external meta-skills
 
 Two pre-flight actions run before any analysis. Both happen in the **main worktree** of the skills repo (not a feature worktree).
@@ -352,6 +354,7 @@ Rules:
 - **One PR per run** in one mode — findings or cleanup, never both. See Step 4b for why.
 - **Do not auto-merge.** PRs are for human review. If `gh pr merge --auto` is tempting, resist it.
 - **Never push to `main` directly.** The skill always opens a PR even for tiny edits.
+- **Push and open the PR from `$REPO` (the worktree you branched in), and pass `--head` explicitly:** `gh pr create --head "$(git -C "$REPO" rev-parse --abbrev-ref HEAD)" --base main ...`. When a separate main checkout exists on `main` (the usual case under the scheduler), a bare `gh pr create` can resolve to *that* checkout and try to open the PR from `main` instead of your feature branch — the same wrong-checkout trap as the Step 5 file-edit warning, one layer down. Always pin `--head`.
 - **Open the PR if any of:** (a) Step 4 produced edits under `skills/` (from conversation findings *or* brief audit), (b) Step 0's `npx skills update` produced changes under `.agents/skills/`, (c) Step 4b ran skill-cleaner and it made changes, or (d) Step 5b advanced either cursor. Any one is worth a PR — those changes still need a human to merge so the cursors land on `main`.
 - **If the run analyzed zero inputs** (both pullers returned empty batches and no meta-skill updates), skip the PR entirely — nothing to advance, nothing to ship. Go to Step 7 with "no changes warranted".
 - **State-only PRs are normal.** A run with no findings, no cleanup, and no meta-skill updates but with a non-empty batch of conversations and/or briefs should still open a PR containing only the cursor bumps — that's how the cursors persist. Title and body should make clear it's a cursor-only run.
@@ -386,4 +389,4 @@ When self-improving, the same Step 5-7 rules apply: PR, explain, do not auto-mer
 
 This skill is designed to be invoked by a cron job (Claude `/schedule` or a codex automation). The simplest setup is a daily run, but adjust to taste — more frequent runs mean smaller batches and faster feedback, less frequent means more context per finding. The script's 7-day first-run window means even an unattended first fire is bounded.
 
-**Entry point under the scheduler.** The scheduled task says "Run the skill-improver skill," but this skill lives in the skills repo at `skills/skill-improver/SKILL.md` — it is *not* registered as an invocable Skill, so attempting to load it by name fails ("Unknown skill") in both Claude and codex. Don't treat that as a dead end: locate this file directly and follow it. If `CLAUDE_PROJECT_DIR` is unset (common under the scheduler), glob for `skills/skill-improver/config.json` under the known skills-repo roots in `config.json` to find the repo, then read the `SKILL.md` next to it. This has cost two consecutive runs a couple of wasted turns at startup.
+**Entry point under the scheduler.** As the banner at the top of "The run" says, don't try to load this by name — follow the file. To locate it when `CLAUDE_PROJECT_DIR` is unset (common under the scheduler), glob for `skills/skill-improver/config.json` under the known skills-repo roots, then read the `SKILL.md` next to it.
