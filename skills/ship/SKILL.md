@@ -1,6 +1,6 @@
 ---
 name: ship
-description: Ships a Linear ticket end-to-end — selects the ticket (or reads the one the user named), optionally plans, implements in a fresh worktree, opens a Graphite stack of PRs, runs review loops, and merges after explicit user approval. Use when the user asks to "ship", "implement", or "pick up" a Linear ticket, or any end-to-end feature/bug ticket workflow. Holds the human in the loop at every approval gate.
+description: Ships work end-to-end into a Graphite PR stack with review loops and a human-approved merge. Two modes — from a Linear ticket (selects or reads the named ticket, optionally plans, implements in a fresh worktree), or from changes already made locally ("ship these changes as a PR") where it skips ticket creation/selection and goes straight to PR creation. Use when the user asks to "ship", "implement", or "pick up" a ticket, or to "ship these changes / open a PR" for existing local work. Holds the human in the loop at every approval gate.
 ---
 
 # Ship
@@ -8,6 +8,17 @@ description: Ships a Linear ticket end-to-end — selects the ticket (or reads t
 End-to-end Linear ticket → worktree → Graphite PR stack → review-agent loops → merge.
 
 This skill is paired with the `ticket` skill. Normally a Linear ticket already exists; this skill picks one up. If the user wants to ship something with no ticket yet, read the `ticket` skill and follow its workflow to create one before continuing.
+
+## Two entry modes
+
+How the skill was invoked determines whether a ticket is involved at all:
+
+- **Ticket mode (default).** The user names or asks you to pick up a Linear ticket ("ship FOO-123", "ship the feed-pagination ticket", "pick up a ticket"). Run the full flow starting at Step 1.
+- **Existing-changes mode.** The user points at work already done locally and just wants it shipped as a PR — e.g. **"ship these changes as a PR"**, "open a PR for what I've got", "ship this diff". This is invoked when code has already changed locally without starting from a ticket. In this mode:
+  - **Skip ticket creation and ticket selection entirely** — do **not** read the `ticket` skill, do **not** create a Linear ticket, and do **not** browse for one to attach. Only create or attach a ticket if the user explicitly asks for it in this invocation.
+  - **Skip the Linear steps** — Step 1 (Select ticket), the Linear status transitions, and the Linear progress log. There's no ticket, so there's nothing to move or comment on. PR bodies omit the `Closes <LINEAR-ID>` line (there's no id).
+  - **Jump to the PR flow.** Treat the existing working-tree changes as the implemented end state (the output of Step 5a) and continue from there: Step 5b (deslop), Step 5c (review the diff / decide on stack breakup), Step 5d (split into a stack), Step 6 (submit + review loop), and Step 7 (merge) — all unchanged.
+  - Everything else (approval gates, review loop, merge gate, screenshots, no-force-push rules) applies exactly as in ticket mode.
 
 ## Required tools
 
@@ -31,7 +42,7 @@ The agent never advances past these without explicit user confirmation ("yes", "
 
 ## Progress checklist
 
-Copy this into the response and tick as work progresses:
+Copy this into the response and tick as work progresses. In **existing-changes mode** (see "Two entry modes"), drop steps 1–3 and the Linear-status line in step 8 — start at step 4 (or 5b if the worktree is already the one holding the changes).
 
 ```
 - [ ] 1. Select ticket
@@ -52,6 +63,8 @@ Copy this into the response and tick as work progresses:
 
 ## Linear progress log
 
+> Skipped entirely in **existing-changes mode** — there's no ticket to comment on.
+
 Post a short comment to the Linear ticket via the Linear MCP at each milestone below. Comments are status entries, not transcripts — one or two lines plus links. Avoid logging chat-level back-and-forth.
 
 | Milestone                           | Comment content                                      |
@@ -64,6 +77,8 @@ Post a short comment to the Linear ticket via the Linear MCP at each milestone b
 | Merge complete (Step 7)             | merged PR URLs in order                              |
 
 ## Linear status transitions
+
+> Skipped entirely in **existing-changes mode** — there's no ticket to move.
 
 Move the ticket via the Linear MCP at each transition below. The workspace's available state names vary — look them up via the MCP and pick the closest semantic match.
 
