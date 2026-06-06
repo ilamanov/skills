@@ -225,7 +225,7 @@ Submit the stack via Graphite — one PR per branch, each opened as **ready for 
 
 For **each PR** (bottom-up), run this loop until either the PR is clean — CI checks green **and** no actionable review findings — **or** the user gives a merge signal (Step 7), whichever comes first:
 
-1. **Wait for the review** to post. Latency is agent-specific — for Codex, ~6–7 min is typical. If the harness exposes a periodic-watcher mechanism (recurring scheduled check, polling loop, cron-style wake), set one up to fetch the PR's comments at that cadence and surface anything new from the review agent. Otherwise fall back to a single delayed wake (e.g. `ScheduleWakeup` at ~400s, kept under the prompt-cache TTL) and re-arm after each fetch.
+1. **Wait for the review** to post — but **don't block-wait or hand it back to the user to ping you.** The moment the stack is submitted, proactively set up a watcher to fetch each PR's comments on a cadence and surface anything new; setting one up is the default, not something you do only when asked. Latency is agent-specific — for Codex, ~6–7 min is typical. Use whatever periodic-watcher mechanism the harness exposes: under **Codex this is the automation / scheduled-task system** — create a recurring automation that re-checks the PRs; under Claude Code it's a recurring scheduled check or polling loop. Only if no such mechanism is available, fall back to a single delayed wake (e.g. `ScheduleWakeup` at ~400s, kept under the prompt-cache TTL) and re-arm after each fetch.
 
    **Watcher lifecycle:** the watcher exists **to catch review findings and failing checks** — it is not responsible for waiting on the user's merge approval. Create it once when the stack is first submitted, and keep it running across all PRs and rounds while findings or check fixes are outstanding.
 
@@ -299,6 +299,10 @@ For **each PR** (bottom-up), run this loop until either the PR is clean — CI c
    - **Update the PR description** to record the explicit skip so future review rounds don't resurface it. Maintain a `## Explicit skips` section at the bottom of the PR body and append a bullet for each skip: `<one-line finding summary> — <reason>` with a link to the finding comment. Edit the PR body via:
      ```bash
      gh pr edit <num> --body "$(updated body)"
+     ```
+     If `gh pr edit` fails with a GitHub *"Projects (classic) is being deprecated"* GraphQL error, don't treat it as a dead end — `gh pr edit` resolves classic-project fields and errors out account-wide once classic projects are sunset, so retrying it won't help. Edit the body (and title) via the REST API instead, which avoids that path:
+     ```bash
+     gh api -X PATCH repos/{owner}/{repo}/pulls/<num> -F body=@<file>   # add -f title="..." to also change the title
      ```
      The section serves as durable context for the review agent on the next pass.
 
