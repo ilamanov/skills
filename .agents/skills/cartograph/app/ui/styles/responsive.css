@@ -1,0 +1,90 @@
+@media (max-width: 900px) {
+  .app-frame {
+    flex-direction: column;
+  }
+
+  .sessions-rail {
+    width: 100%;
+    min-width: 0;
+    max-height: 156px;
+    border-right: 0;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .sessions-list {
+    flex-direction: row;
+    overflow-x: auto;
+    overflow-y: hidden;
+  }
+
+  .session-item {
+    width: 148px;
+    flex: 0 0 148px;
+  }
+
+  .header,
+  .detail-header,
+  .info-card-top,
+  .health-card-header {
+    display: grid;
+  }
+
+  .header-actions {
+    justify-content: flex-start;
+  }
+
+  .main {
+    display: flex;
+    flex-direction: column;
+  }
+
+  .split-panel {
+    display: block;
+  }
+
+  .tabs {
+    align-items: flex-start;
+  }
+
+  .tab-cluster {
+    max-width: calc(100vw - 40px);
+  }
+
+  .tab-cluster-items {
+    min-width: 0;
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+
+  .tab-cluster-items::-webkit-scrollbar {
+    display: none;
+  }
+
+  .tab {
+    flex: 0 0 auto;
+    padding-right: 12px;
+    padding-left: 12px;
+  }
+
+  .sidebar {
+    width: 100%;
+    max-height: 240px;
+    border-right: 0;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .sidebar-list {
+    display: grid;
+    max-height: 240px;
+    height: auto;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  }
+
+  .graph-panel {
+    min-height: 420px;
+  }
+
+  .welcome-shell {
+    padding: 32px 16px;
+  }
+}

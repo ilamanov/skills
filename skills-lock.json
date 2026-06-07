@@ -1,6 +1,12 @@
 {
   "version": 1,
   "skills": {
+    "cartograph": {
+      "source": "NoodleFlowLabs/cartograph",
+      "sourceType": "github",
+      "skillPath": "skills/cartograph/SKILL.md",
+      "computedHash": "75c8def13cf5d65e2aa49120efc802982f17d0dfc4403d19f0ca93b429332094"
+    },
     "grill-me": {
       "source": "mattpocock/skills",
       "sourceType": "github",

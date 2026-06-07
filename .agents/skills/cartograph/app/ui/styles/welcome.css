@@ -1,0 +1,188 @@
+.welcome-shell {
+  position: relative;
+  display: flex;
+  width: 100%;
+  min-height: 100vh;
+  margin: 0 auto;
+  padding: 80px 32px 48px;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 28px;
+  overflow-y: auto;
+  background:
+    radial-gradient(circle at top, rgba(200, 167, 80, 0.08), transparent 38%),
+    radial-gradient(circle, rgba(200, 167, 80, 0.06) 1px, transparent 1px),
+    var(--bg);
+  background-size:
+    100% 100%,
+    32px 32px,
+    100% 100%;
+  text-align: center;
+}
+
+.welcome-logo {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.welcome-logo-text {
+  color: var(--text);
+  font-family: var(--mono);
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.25em;
+  text-transform: uppercase;
+}
+
+.welcome-subtitle {
+  max-width: 480px;
+  color: var(--text-muted);
+  font-size: 14px;
+  line-height: 1.6;
+}
+
+.welcome-features {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.welcome-feature {
+  color: var(--text-muted);
+  font-family: var(--mono);
+  font-size: 11px;
+  letter-spacing: 0.04em;
+}
+
+.welcome-feature-sep {
+  color: var(--text-dim);
+  font-size: 11px;
+}
+
+.welcome-feature-sep::before {
+  content: "\00b7";
+}
+
+.drop-zone {
+  width: min(520px, 100%);
+  padding: 28px 28px 24px;
+  border: 1px dashed rgba(200, 167, 80, 0.25);
+  border-radius: 4px;
+  background: rgba(10, 10, 14, 0.85);
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.45);
+  text-align: center;
+  cursor: pointer;
+  transition:
+    border-color 0.2s,
+    background 0.2s,
+    transform 0.2s;
+}
+
+.drop-zone.dragover,
+.drop-zone:focus-visible {
+  border-color: var(--accent);
+  background: rgba(200, 167, 80, 0.08);
+  outline: none;
+  transform: translateY(-2px);
+}
+
+.drop-zone-title {
+  margin-bottom: 6px;
+  color: var(--text);
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.drop-zone-title code {
+  padding: 1px 6px;
+  border-radius: 3px;
+  color: var(--accent);
+  background: rgba(200, 167, 80, 0.08);
+  font-family: var(--mono);
+  font-size: 13px;
+}
+
+.drop-zone-sub {
+  margin-bottom: 18px;
+  color: var(--text-dim);
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.drop-zone-btn {
+  display: inline-block;
+  padding: 10px 24px;
+  border: 0;
+  border-radius: var(--radius);
+  color: #050507;
+  background: var(--accent);
+  font-family: var(--mono);
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.drop-zone-btn:hover {
+  background: #d4b55c;
+}
+
+.drop-zone-error {
+  margin-top: 14px;
+  color: var(--red);
+  font-size: 12px;
+}
+
+.welcome-refresh {
+  padding: 8px 16px;
+}
+
+.welcome-footer {
+  display: flex;
+  width: 100%;
+  flex-direction: column;
+  align-items: center;
+  gap: 20px;
+}
+
+.welcome-local-link {
+  color: rgba(255, 255, 255, 0.3);
+  font-size: 0.8rem;
+  line-height: 1.6;
+  text-align: center;
+}
+
+.welcome-local-link a {
+  color: rgba(255, 255, 255, 0.5);
+  text-decoration: none;
+}
+
+.welcome-local-link a:hover {
+  color: var(--text-muted);
+}
+
+.welcome-footer > a {
+  display: inline-block;
+  padding: 8px 20px;
+  border: 1px solid rgba(200, 167, 80, 0.25);
+  border-radius: var(--radius);
+  color: var(--accent);
+  font-family: var(--mono);
+  font-size: 11px;
+  letter-spacing: 0.06em;
+  text-decoration: none;
+  transition:
+    border-color 0.15s,
+    background 0.15s;
+}
+
+.welcome-footer > a:hover {
+  border-color: rgba(200, 167, 80, 0.45);
+  background: rgba(200, 167, 80, 0.06);
+}
