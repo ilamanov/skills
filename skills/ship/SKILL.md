@@ -1,6 +1,6 @@
 ---
 name: ship
-description: Ships a Linear ticket end-to-end — selects the ticket (or reads the one the user named), optionally plans, implements in a fresh worktree, opens a Graphite stack of PRs, runs review loops, and merges after explicit user approval. Use when the user asks to "ship", "implement", or "pick up" a Linear ticket, or any end-to-end feature/bug ticket workflow. Holds the human in the loop at every approval gate.
+description: Ships work end-to-end into a Graphite PR stack with review loops and a human-approved merge. Two modes — from a Linear ticket (selects or reads the named ticket, optionally plans, implements in a fresh worktree), or from changes already made locally ("ship these changes as a PR") where it skips ticket creation/selection and goes straight to PR creation. Use when the user asks to "ship", "implement", or "pick up" a ticket, or to "ship these changes / open a PR" for existing local work. Holds the human in the loop at every approval gate.
 ---
 
 # Ship
@@ -8,6 +8,17 @@ description: Ships a Linear ticket end-to-end — selects the ticket (or reads t
 End-to-end Linear ticket → worktree → Graphite PR stack → review-agent loops → merge.
 
 This skill is paired with the `ticket` skill. Normally a Linear ticket already exists; this skill picks one up. If the user wants to ship something with no ticket yet, read the `ticket` skill and follow its workflow to create one before continuing.
+
+## Two entry modes
+
+How the skill was invoked determines whether a ticket is involved at all:
+
+- **Ticket mode (default).** The user names or asks you to pick up a Linear ticket ("ship FOO-123", "ship the feed-pagination ticket", "pick up a ticket"). Run the full flow starting at Step 1.
+- **Existing-changes mode.** The user points at work already done locally and just wants it shipped as a PR — e.g. **"ship these changes as a PR"**, "open a PR for what I've got", "ship this diff". This is invoked when code has already changed locally without starting from a ticket. In this mode:
+  - **Skip ticket creation and ticket selection entirely** — do **not** read the `ticket` skill, do **not** create a Linear ticket, and do **not** browse for one to attach. Only create or attach a ticket if the user explicitly asks for it in this invocation.
+  - **Skip the Linear steps** — Step 1 (Select ticket), the Linear status transitions, and the Linear progress log. There's no ticket, so there's nothing to move or comment on. PR bodies omit the `Closes <LINEAR-ID>` line (there's no id).
+  - **Jump to the PR flow.** Treat the existing working-tree changes as the implemented end state (the output of Step 5a) and continue from there: Step 5b (deslop), Step 5c (review the diff / decide on stack breakup), Step 5d (split into a stack), Step 6 (submit + review loop), and Step 7 (merge) — all unchanged.
+  - Everything else (approval gates, review loop, merge gate, screenshots, no-force-push rules) applies exactly as in ticket mode.
 
 ## Required tools
 
@@ -31,7 +42,7 @@ The agent never advances past these without explicit user confirmation ("yes", "
 
 ## Progress checklist
 
-Copy this into the response and tick as work progresses:
+Copy this into the response and tick as work progresses. In **existing-changes mode** (see "Two entry modes"), drop steps 1–3 and the Linear-status line in step 8 — start at step 4 (or 5b if the worktree is already the one holding the changes).
 
 ```
 - [ ] 1. Select ticket
@@ -52,6 +63,8 @@ Copy this into the response and tick as work progresses:
 
 ## Linear progress log
 
+> Skipped entirely in **existing-changes mode** — there's no ticket to comment on.
+
 Post a short comment to the Linear ticket via the Linear MCP at each milestone below. Comments are status entries, not transcripts — one or two lines plus links. Avoid logging chat-level back-and-forth.
 
 | Milestone                           | Comment content                                      |
@@ -64,6 +77,8 @@ Post a short comment to the Linear ticket via the Linear MCP at each milestone b
 | Merge complete (Step 7)             | merged PR URLs in order                              |
 
 ## Linear status transitions
+
+> Skipped entirely in **existing-changes mode** — there's no ticket to move.
 
 Move the ticket via the Linear MCP at each transition below. The workspace's available state names vary — look them up via the MCP and pick the closest semantic match.
 
@@ -215,7 +230,7 @@ The review agent runs **remotely on the PR** — it's a GitHub-side bot that rea
 
 The active review agent for this project is **Codex** — the agent-specific bindings (latency, author name, retrigger command) live inside the loop below. To swap in a different review agent later, change only those bindings.
 
-Submit the stack via Graphite — one PR per branch, each opened as **ready for review** (not draft). Pass `--publish` explicitly when submitting non-interactively: `gt submit --no-interactive` opens new PRs as **drafts** by default, which then forces a wasteful extra "mark ready for review" round-trip and delays the auto-review. Only fall back to draft (`--draft`) if the user explicitly asks, or if something genuinely blocks the PR from being reviewable (e.g. a known-broken intermediate state the user wants to share for context). PR creation auto-triggers a review on each new PR.
+Submit the stack via Graphite — one PR per branch. **Always open every PR as ready for review — never as a draft.** Pass `--publish` explicitly when submitting non-interactively: `gt submit --no-interactive` opens new PRs as **drafts** by default, so `--publish` is required to avoid a wasteful "mark ready for review" round-trip that delays the auto-review. Never pass `--draft` (or Graphite's draft equivalent), and don't fall back to draft for intermediate/known-broken states; if a PR genuinely isn't ready, say so in chat and let the user decide rather than silently shipping a draft. This holds in both entry modes — including existing-changes mode, where the tendency to default to draft is strongest. PR creation auto-triggers a review on each new PR, so a draft would just stall the review loop.
 
 **Keep every PR green.** Checks run on creation and re-run on every push. Treat a red check like a review finding: read its logs — `gh pr checks` only lists which checks passed/failed (state, link, workflow), not the error output, so open the failing check's link or pull the actual log via the run (`gh run view <run-id> --log-failed`, or `--log`), then fix it with an additive commit (new commit, never amend/force), and push — watch checks on the same tick as review comments, and don't wait to be told. If a check is red for something only the user can fix (flaky infra, a user-controlled secret), say so and hand it over rather than looping.
 
@@ -359,6 +374,7 @@ Short summary: ticket id, merged PR URLs, review findings skipped + reasons.
 - **Never force-push. This is a hard rule, not a default.** Do not run `git push --force` / `--force-with-lease`, and do not pass any force/squash flag to Graphite (`gt submit --force`, `gt submit --squash`, or equivalent). The **only** force-push allowed is the implicit one Graphite performs on its own during a `restack` to realign a branch onto its updated parent — that is internal to Graphite's stacking and you never invoke it directly. If a push is rejected as non-fast-forward, **stop and ask the user** — do not reach for `--force` to get past it.
   - **Why this matters to the user:** force-pushing rewrites the branch and collapses the work into a single squashed commit, destroying the per-commit history. The user reviews changes **commit by commit** and needs every incremental change to remain a distinct, inspectable commit on the PR. A force-push throws that away. Each implementation step and each review-finding fix must stay as its own commit (see Step 6, point 6) — pushed additively, never rewritten.
 - No `--no-verify` unless the user asks.
+- **Never create PRs in draft mode.** Every PR is opened ready for review — no `--draft` / Graphite draft flag — in both entry modes (see Step 6).
 - Review-finding fixes always land as separate commits on the PR branch — a new commit and `gt submit`, **never `gt modify`**/amend/squash unless the user explicitly asks. (`gt modify` is the `graphite` skill's default for shaping an unsubmitted stack; it doesn't apply once the stack is in review.)
 - If the plan turns out wrong mid-implementation, stop and re-confirm with the user.
 - If Linear MCP is unreachable mid-flow, surface the would-be status change in chat and ask the user to update Linear.
