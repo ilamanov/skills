@@ -38,6 +38,7 @@ Guardrails:
 2. Check whether the refresh changed any skill files or the lock file (e.g. via the version-control status of those paths).
    - **If nothing changed:** note "skills already up to date" and move on.
    - **If anything changed:** create a standalone PR with just those changes — title `chore: refresh installed skills`, body listing the updated skills. This is a **plain PR** — do not run it through the `ship` stacked-PR flow. Then surface the list of updated skills and the PR link in the final summary.
+     - If you label this PR (e.g. `codex`/`codex-automation` automation labels), set the labels at creation with `gh pr create --label <label>` rather than reaching for `gh pr edit --add-label` afterward. `gh pr edit` routes label changes through the classic-Projects GraphQL path, which now errors account-wide with *"Projects (classic) is being deprecated"* once classic projects are sunset — so it fails and retrying won't help. To label an already-open PR, go through the REST endpoint instead: `gh api repos/{owner}/{repo}/issues/<num>/labels -f "labels[]=<label>"`.
 3. Keep this PR completely separate from any feature work in Check 3 — separate branch, separate PR, no shared commits.
 
 ## Check 3 — Ticket triage and ship
