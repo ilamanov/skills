@@ -1,0 +1,185 @@
+:root {
+  /* ---- Night-atlas palette ---- */
+  --bg: #070a13;
+  --bg-deep: #05070e;
+  --bg-elev: #0f1726;
+  --bg-card: rgba(20, 28, 47, 0.66);
+  --bg-card-hover: rgba(30, 42, 70, 0.82);
+
+  --border: rgba(126, 156, 214, 0.16);
+  --border-soft: rgba(126, 156, 214, 0.09);
+  --border-strong: rgba(140, 178, 235, 0.32);
+
+  --text: #e9edf8;
+  --text-dim: #a3b2d2;
+  --text-faint: #74859f;
+  --parchment: #f3ecdd; /* warm tint for serif display */
+
+  /* signal = primary accent (luminous cyan-teal) */
+  --accent: #5ad6e6;
+  --accent-bright: #93f1f6;
+  --accent-soft: rgba(48, 132, 156, 0.18);
+  --accent-line: rgba(90, 214, 230, 0.4);
+
+  --codex: #4ade80;
+  --codex-soft: rgba(30, 78, 58, 0.5);
+  --codex-line: rgba(74, 222, 128, 0.32);
+
+  --claude: #c6a8fc;
+  --claude-soft: rgba(58, 41, 92, 0.5);
+  --claude-line: rgba(198, 168, 252, 0.34);
+
+  --warn: #f5c45a;
+  --warn-soft: rgba(74, 56, 16, 0.55);
+  --danger: #fb7185;
+  --danger-soft: rgba(90, 35, 48, 0.5);
+  --archived: #7385a6;
+
+  --radius: 14px;
+  --radius-sm: 9px;
+
+  --shadow-card: 0 1px 0 rgba(255, 255, 255, 0.04) inset, 0 10px 30px -18px rgba(0, 0, 0, 0.8);
+  --shadow-pop: 0 18px 50px -20px rgba(0, 0, 0, 0.75);
+  --glow: 0 0 0 1px var(--accent-line), 0 0 28px -6px rgba(90, 214, 230, 0.35);
+
+  --display: 'Instrument Serif', 'Iowan Old Style', Georgia, serif;
+  --sans: 'Hanken Grotesk', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --mono: 'Geist Mono', ui-monospace, SFMono-Regular, 'SF Mono', Menlo, monospace;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  min-height: 100vh;
+  color: var(--text);
+  font-family: var(--sans);
+  font-size: 14px;
+  line-height: 1.55;
+  letter-spacing: 0.01em;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+  background-color: var(--bg);
+  /* layered atmosphere: aurora glows + faint star grid + vignette */
+  background-image:
+    radial-gradient(900px 520px at 12% -8%, rgba(56, 150, 170, 0.16), transparent 60%),
+    radial-gradient(760px 460px at 96% 4%, rgba(126, 96, 200, 0.12), transparent 62%),
+    radial-gradient(1100px 700px at 50% 120%, rgba(40, 70, 120, 0.18), transparent 70%),
+    radial-gradient(circle at 1px 1px, rgba(150, 180, 230, 0.05) 1px, transparent 0);
+  background-size: auto, auto, auto, 26px 26px;
+  background-attachment: fixed;
+}
+
+/* fine grain film over everything for tactile depth */
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 0;
+  opacity: 0.04;
+  mix-blend-mode: soft-light;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+}
+
+#root {
+  position: relative;
+  z-index: 1;
+}
+
+a {
+  color: var(--accent);
+  text-decoration: none;
+}
+a:hover {
+  text-decoration: underline;
+}
+
+code,
+.mono {
+  font-family: var(--mono);
+  font-size: 0.86em;
+  letter-spacing: -0.01em;
+}
+
+button {
+  font-family: inherit;
+}
+
+h1,
+h2,
+h3 {
+  margin: 0;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+
+::selection {
+  background: rgba(90, 214, 230, 0.28);
+  color: #fff;
+}
+
+/* slim, themed scrollbars */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(120, 150, 200, 0.28) transparent;
+}
+*::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+*::-webkit-scrollbar-thumb {
+  background: rgba(120, 150, 200, 0.22);
+  border-radius: 999px;
+  border: 3px solid transparent;
+  background-clip: content-box;
+}
+*::-webkit-scrollbar-thumb:hover {
+  background: rgba(120, 150, 200, 0.4);
+  background-clip: content-box;
+}
+
+@keyframes rise {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+@keyframes fade {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+@keyframes pulse-dot {
+  0%, 100% {
+    box-shadow: 0 0 0 0 currentColor;
+    opacity: 1;
+  }
+  50% {
+    box-shadow: 0 0 6px 1px currentColor;
+    opacity: 0.7;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation: none !important;
+    transition: none !important;
+  }
+}
