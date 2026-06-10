@@ -413,6 +413,59 @@ details.empties[open] > summary::before {
   background: linear-gradient(90deg, var(--border-soft), transparent);
 }
 
+/* ===== Codex worktree snapshots ===== */
+.snapshots {
+  margin-top: 26px;
+}
+.snapshot-none {
+  font-size: 12px;
+  color: var(--text-faint);
+}
+.snapshots__list {
+  display: grid;
+  gap: 9px;
+}
+.snapshot {
+  background: rgba(20, 28, 47, 0.5);
+  border: 1px solid var(--border-soft);
+  border-left: 2px solid var(--warn);
+  border-radius: var(--radius-sm);
+  padding: 11px 13px;
+}
+.snapshot__top {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  flex-wrap: wrap;
+}
+.snapshot__base {
+  font-size: 11.5px;
+  color: var(--text-dim);
+}
+.snapshot__when {
+  margin-left: auto;
+  font-size: 12px;
+  color: var(--text-faint);
+  white-space: nowrap;
+}
+.snapshot__stat {
+  margin-top: 7px;
+  font-size: 12px;
+  color: var(--text-dim);
+}
+.snapshot__stat b {
+  color: var(--text);
+}
+.snapshot__add {
+  color: var(--codex);
+}
+.snapshot__del {
+  color: var(--danger);
+}
+.snapshot__actions {
+  margin-top: 10px;
+}
+
 /* ===== Toast ===== */
 .toast {
   position: fixed;

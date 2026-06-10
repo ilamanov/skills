@@ -23,6 +23,7 @@ import {
   ArchiveError,
   ClaudeDeleteError,
 } from './lib/archive.mjs'
+import { listSnapshots, restoreSnapshot, SnapshotError } from './lib/snapshots.mjs'
 
 const DEFAULT_PORT = 6310
 const MAX_PORT = 6320
@@ -91,6 +92,30 @@ async function mutateArchive(c, action) {
     throw error
   }
 }
+
+app.get('/api/snapshots', async (c) => {
+  const projectPath = c.req.query('path')
+  if (!projectPath) return c.json({ error: 'missing ?path' }, 400)
+  return c.json(await listSnapshots(path.resolve(projectPath)))
+})
+
+app.post('/api/snapshot/restore', async (c) => {
+  let body
+  try {
+    body = await c.req.json()
+  } catch {
+    return c.json({ error: 'invalid JSON body' }, 400)
+  }
+  if (!body || typeof body.project !== 'string' || typeof body.id !== 'string') {
+    return c.json({ error: 'expected body shape: { project, id }' }, 400)
+  }
+  try {
+    return c.json({ ok: true, result: await restoreSnapshot(body.project, body.id) })
+  } catch (error) {
+    if (error instanceof SnapshotError) return c.json({ error: error.message }, 409)
+    throw error
+  }
+})
 
 app.post('/api/session/delete', async (c) => {
   let body

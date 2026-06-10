@@ -1,6 +1,7 @@
 import { html } from '../lib/html.js'
 import { Logo } from './common.js'
 import { Workspaces } from './workspaces.js'
+import { Snapshots } from './snapshots.js'
 import { Sessions } from './sessions.js'
 
 export function Project({ data, busy, onBack, onRefresh, onMutated, flash }) {
@@ -45,6 +46,7 @@ export function Project({ data, busy, onBack, onRefresh, onMutated, flash }) {
           onMutated=${onMutated}
           flash=${flash}
         />
+        <${Snapshots} projectPath=${project.path} onMutated=${onMutated} flash=${flash} />
       </section>
 
       <section class="panel">
