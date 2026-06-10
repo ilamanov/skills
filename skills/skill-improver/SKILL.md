@@ -166,10 +166,10 @@ Useful flags mirror the conversation puller: `--since`, `--project`, `--mode dra
 - Hero TL;DR longer than two sentences, or padded into a narrative paragraph.
 - Mode pill missing or too visually subtle to disambiguate DRAFT from FINAL at a glance.
 - PR Stack section missing entirely (even for a single PR), or buried below high-stakes callouts / code tour / file index.
-- Section order deviating from the prescribed sequence (Hero → PR Stack → High-stakes → Endpoint Audit → Schema → Code Tour → PR Evolution → File Index).
+- Section order deviating from the prescribed sequence (Hero → PR Stack → High-stakes → Endpoint Audit → Schema → Code Tour → File Index).
 - Code Tour section that is prose-only — no `<pre><code>` blocks, no inline diff or source snippets.
 - Schema changes summarized in prose instead of walked line by line in a table.
-- (FINAL) Follow-up commits in PR Evolution that aren't tagged with a cause (review finding / user steering / other), or skipped review findings not surfaced in a warning-colored row.
+- (FINAL) On any PR card, a follow-up commit not attributed to a cause (review finding / user steering / other), or a skipped review finding not surfaced in its own warning-colored row — the per-PR commit/finding history lives on the card itself, not in a separate section further down.
 - Tour stops totaling 8+ without a sticky tour TOC.
 
 Tag findings the same way as conversation findings, but with a brief-specific shape:
