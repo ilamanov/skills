@@ -42,6 +42,18 @@ export function unarchiveSession(id) {
   })
 }
 
+export function fetchSnapshots(projectPath) {
+  return request(`/api/snapshots?${new URLSearchParams({ path: projectPath }).toString()}`)
+}
+
+export function restoreSnapshot(project, id) {
+  return request('/api/snapshot/restore', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ project, id }),
+  })
+}
+
 export function deleteClaudeSession(id) {
   return request('/api/session/delete', {
     method: 'POST',

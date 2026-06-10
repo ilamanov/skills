@@ -90,6 +90,22 @@ under Sessions afterward. For a worktree that exists on disk but git's list
 doesn't track it, removal falls back to deleting the directory and pruning the
 stale admin entry.
 
+## Restoring cleaned-up worktrees
+
+Before Codex deletes a managed worktree it records the work as a git commit kept
+under `refs/codex/snapshots/<id>` in the repo's shared `.git`. The Worktrees panel
+surfaces these: the **recoverable** ones (commits whose subject is
+`Codex worktree snapshot: …`, i.e. they captured *uncommitted* work) are shown
+with their cleanup type, base branch, and diffstat; the rest (snapshots that just
+point at commits already in history) collapse into a count below.
+
+**Restore** materializes a snapshot as a fresh git worktree on a
+`codex-restore/<sha>` branch beside the repo — non-destructive; it only adds a
+worktree, which then appears in the Worktrees list (removable from there). This
+reads undocumented Codex internals, so it is best-effort: no snapshot refs means
+the section simply doesn't appear, and the snapshot→conversation mapping isn't
+reliable enough to label, so snapshots are identified by their git metadata.
+
 ## Notes
 
 - **Read-only on the analyzed project** — the only writes are Codex archive moves
