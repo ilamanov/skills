@@ -54,7 +54,7 @@ The path encoding in `~/.claude/projects/` is lossy (both `/` and `.` map to `-`
 Be precise about which is which — they're treated very differently:
 
 - **External meta-skills** live under `.agents/skills/` (and `.claude/skills/` which is just symlinks to `.agents/`). These come from upstream via `npx skills update` — skill-creator is the canonical example, but more may be added over time. They are the *tools used to create, maintain, and improve* the user's own skills. **Never edit these.** They are read-only from this skill's perspective; updates only ever come from `npx skills update`.
-- **User-owned skills** live under `skills/` at the repo root (e.g. `skills/ship/`, `skills/ticket/`, `skills/skill-improver/`). These are what this skill exists to improve. All analysis-driven edits target files here.
+- **User-owned skills** live under `skills/` at the repo root (e.g. `skills/ship/`, `skills/ticket/`, `skills/skill-improver/`). These are what this skill exists to improve. All analysis-driven edits target files here. Note that many of these are also **distributed to the other configured projects** — they show up under each project's own `.agents/skills/<name>/` (synced via `npx skills`). So when a conversation in ao2, cartograph, etc. invokes `$ship`, `$advisor`, or `$project-health-check`, that *is* this repo's skill in use: attribute the finding to `skills/<name>/` and edit it here, never in the other project's copy. Don't dismiss a cross-project `$skill` conversation as "some other repo's skill" — that mis-triage has dropped in-scope conversations.
 
 ## The run
 
