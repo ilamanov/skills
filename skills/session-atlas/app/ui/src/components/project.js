@@ -1,3 +1,4 @@
+import { useState } from 'preact/hooks'
 import { html } from '../lib/html.js'
 import { Logo } from './common.js'
 import { Workspaces } from './workspaces.js'
@@ -6,9 +7,13 @@ import { Sessions } from './sessions.js'
 
 export function Project({ data, busy, onBack, onRefresh, onMutated, flash }) {
   const { project, workspaces, sessions } = data
+  const [sessionFilter, setSessionFilter] = useState('all')
   const codexCount = sessions.filter((s) => s.source === 'codex').length
   const claudeCount = sessions.filter((s) => s.source === 'claude').length
   const archivedCount = sessions.filter((s) => s.archived).length
+  const activeSessionCount = sessions.filter(
+    (s) => !s.archived && (sessionFilter === 'all' || s.source === sessionFilter),
+  ).length
 
   return html`
     <div class="topbar">
@@ -51,10 +56,19 @@ export function Project({ data, busy, onBack, onRefresh, onMutated, flash }) {
 
       <section class="panel">
         <div class="panel__head">
-          <h2 class="panel__title">Sessions <span class="panel__count">${sessions.length}</span></h2>
-          <p class="panel__sub">newest first · archived collapsed below</p>
+          <div>
+            <h2 class="panel__title">Sessions</h2>
+            <p class="panel__sub">newest first · archived collapsed below</p>
+          </div>
+          <span class="panel__count" title="Active sessions">${activeSessionCount}</span>
         </div>
-        <${Sessions} sessions=${sessions} onMutated=${onMutated} flash=${flash} />
+        <${Sessions}
+          sessions=${sessions}
+          filter=${sessionFilter}
+          onFilterChange=${setSessionFilter}
+          onMutated=${onMutated}
+          flash=${flash}
+        />
       </section>
     </div>
   `

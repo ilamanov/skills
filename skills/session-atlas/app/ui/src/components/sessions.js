@@ -102,9 +102,8 @@ function SessionCard({ session, onMutated, flash }) {
   `
 }
 
-export function Sessions({ sessions, onMutated, flash }) {
+export function Sessions({ sessions, filter, onFilterChange, onMutated, flash }) {
   const [query, setQuery] = useState('')
-  const [filter, setFilter] = useState('all')
 
   const normalized = query.trim().toLowerCase()
   const visible = sessions.filter((s) => {
@@ -136,7 +135,7 @@ export function Sessions({ sessions, onMutated, flash }) {
           (key) => html`<button
             key=${key}
             class=${filter === key ? 'is-active' : ''}
-            onClick=${() => setFilter(key)}
+            onClick=${() => onFilterChange(key)}
           >${key === 'all' ? 'All' : key === 'codex' ? 'Codex' : 'Claude'}</button>`,
         )}
       </div>

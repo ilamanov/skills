@@ -209,6 +209,10 @@
   animation-delay: 0.08s;
 }
 .panel__head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
   margin-bottom: 14px;
   padding-bottom: 12px;
   border-bottom: 1px solid var(--border-soft);
