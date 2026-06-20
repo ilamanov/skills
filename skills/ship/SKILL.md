@@ -257,6 +257,7 @@ For **each PR** (bottom-up), run this loop until either the PR is clean — CI c
    Also tear it down immediately if:
    - The user gives an early merge signal in chat — the merge step takes over.
    - The workflow exits abnormally (user cancels, error path) — so the watcher doesn't keep firing in the background.
+   - **The review agent never posts.** The per-PR review-complete condition above requires the agent's 👍 reaction, so it is *unreachable* if the agent stays silent — without a give-up case the watcher polls forever. If, after a bounded number of ticks (rule of thumb: ~6–8, well past the agent's typical latency) plus one re-trigger of the review, a PR still has zero reviews, findings, or 👍, stop watching it and hand back to the user — report "the review agent hasn't posted on PR #N after M checks; the stack is otherwise green and ready" rather than looping indefinitely. (A run once polled an empty-review PR every ~10 min for 3+ hours until the session died.)
 
    Never leave a watcher running after review is complete or the workflow has moved on to merge/cleanup.
 
