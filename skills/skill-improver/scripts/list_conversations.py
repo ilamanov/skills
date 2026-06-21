@@ -378,7 +378,7 @@ def main():
                 if not prev or rec["started_at"] > prev:
                     cursors[proj][src] = rec["started_at"]
             state["projects"] = cursors
-            state["last_run_at"] = datetime.utcnow().isoformat() + "Z"
+            state["last_run_at"] = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%S.%fZ")
             save_json(args.state, state)
 
     print(f"# {len(results)} records", file=sys.stderr)
