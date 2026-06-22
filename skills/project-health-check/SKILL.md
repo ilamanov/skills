@@ -53,6 +53,8 @@ Look at the open tickets in the provided Linear team and pick a good next ticket
 
 **Always present your proposal and wait for the user's explicit approval before any work begins** — never hand a ticket to `ship` on your own initiative, even when the choice seems obvious. Present a recommended next ticket with a one-line rationale, plus 3–5 other candidates with one-line summaries as alternatives, and stop. If there's no suitable actionable ticket at all, say so and **skip the ship** — don't force one.
 
+**Check automation memory for a prior recommendation first, and don't re-present it as if it were new.** On a scheduled cadence this skill often runs day after day with no one picking a ticket in between, so the same top candidate keeps coming up. If memory shows you already recommended a ticket that's still un-actioned, say so plainly — "X was recommended on `<date>` and is still awaiting your pick" — rather than surfacing it again as a fresh proposal. After a few consecutive runs with no pick, treat the backlog as stalled: flag it as such and ask once whether to pick a different candidate, lower the bar, or pause the automation, instead of emitting the identical proposal indefinitely.
+
 Only once the user has explicitly picked or confirmed a ticket, hand it to the `ship` skill and follow that skill's workflow for the rest (worktree, stack, review, merge). `ship` owns all its own approval gates from there.
 
 ## Summary

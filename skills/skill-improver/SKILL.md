@@ -82,6 +82,17 @@ Treatment:
 - These are not findings from conversation analysis — they're upstream releases. Summarize *what* changed (which meta-skill(s), brief diff summary) but don't try to invent a "why we changed this" — the why lives upstream.
 - If `npx skills update` fails (network, auth, etc.), don't abort the run — proceed with Steps 1+ using the currently-installed versions. Note the failure in the final summary.
 
+**0c. Check for unmerged prior-run PRs — this is what keeps the loop honest.** The conversation and brief cursors only land on `main` when a run's PR *merges* (Step 5b advances them inside the PR, never on `main` directly). So if recent findings PRs are sitting open or were closed unmerged, `main`'s cursor is frozen at the last *merged* run, and every run since has been re-pulling the same ever-growing batch and re-deriving findings that are already proposed in those stranded PRs. This has actually happened — four consecutive findings PRs went unmerged and later runs re-discovered and re-fixed edits already sitting in the open ones.
+
+```bash
+gh pr list --state open --search "skill-improver in:title" --limit 20
+gh pr list --state all  --search "skill-improver in:title" --limit 10   # find the last MERGED one
+```
+
+Use the result two ways:
+- **Don't re-ship what's already proposed.** Before drafting any edit in Step 4, skim the diffs of the open PRs (`gh pr diff <n> --name-only`, then the relevant file). If a finding you're about to write is already addressed in an open PR, do **not** duplicate it — list it under "Considered but not changed" with a pointer to that PR number instead. Re-shipping it just deepens the pile.
+- **Surface the backlog loudly.** Note the count of open/closed-unmerged findings PRs and the frozen-cursor date in both the PR body and the Step 7 summary, so the user knows the fix is "merge or close #N–#M," not "write more findings." Until they land, the batch keeps growing and runs keep re-treading the same ground.
+
 ### Step 1 — Pull new conversations
 
 ```bash
