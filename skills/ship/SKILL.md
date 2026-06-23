@@ -170,7 +170,7 @@ Read affected code as needed and implement the full feature on the single workin
 
 **Hold migrations.** Don't generate migration files yet (Prisma `migrate dev`, Drizzle `drizzle-kit generate`, Rails `db:migrate`, Django `makemigrations`, etc.). Schema source files (`prisma/schema.prisma`, `db/schema.ts`, etc.) can change freely; numbered migrations are generated at merge time (Step 7) so they don't collide with parallel work.
 
-**Match backward-compat to the product — don't assume either way.** Backward-compatibility work — compat shims, legacy fallbacks, dual-writes, deprecation paths, data-backfill migrations — is the right call for some products and pure complexity for others, so figure out which this is before you add _or_ omit it. An MVP/prototype with no production usage, no data persisted in the old shape, and no external callers wants a clean break: rename the function, change the contract, drop the old enum value, and don't write the bridge back to a past that isn't there. A product with real users, persisted data, or external API consumers wants the opposite — there a clean break loses data or breaks callers. Read the cues: a populated old-shape table, public API docs, or a ticket implying live users point toward preserving compatibility; an empty schema and "prototype" framing point toward a clean break. When the cues don't settle it, **ask the user which kind of product this is before building (or skipping) the compat path** — don't guess. Guessing wrong is costly in both directions: an unnecessary shim is complexity the user has to catch in review and ask you to strip back out, and a missing one can break real usage. This is the same judgment that governs review-finding triage in Step 6, applied earlier — at implementation time, before any reviewer flags it.
+**Match backward-compat to the product — don't assume either way.** Backward-compatibility work — compat shims, legacy fallbacks, dual-writes, deprecation paths, data-backfill migrations — is the right call for products with real users, persisted data, or external API consumers, and pure complexity for an MVP/prototype with none of those. Decide which this is before you add _or_ omit it. Read the cues: a populated old-shape table, public API docs, or a ticket implying live users point toward preserving compatibility; an empty schema and "prototype" framing point toward a clean break (rename the function, change the contract, drop the old enum value — don't bridge back to a past that isn't there). When the cues don't settle it, **ask the user before building or skipping the compat path** — guessing wrong is costly both ways. This is the same realism judgment Step 6 applies to review findings, made earlier — at implementation time, before any reviewer flags it.
 
 ### 5b. Deslop the working tree (only if the `deslop` skill is present)
 
@@ -257,8 +257,6 @@ For **each PR** (bottom-up), run this loop until either the PR is clean — CI c
    Also tear it down immediately if:
    - The user gives an early merge signal in chat — the merge step takes over.
    - The workflow exits abnormally (user cancels, error path) — so the watcher doesn't keep firing in the background.
-
-   Never leave a watcher running after review is complete or the workflow has moved on to merge/cleanup.
 
 2. **Fetch comments and PR-description reactions**:
    ```bash
