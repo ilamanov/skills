@@ -5,6 +5,8 @@ description: Runs on a schedule to mine recent Codex and Claude Code conversatio
 
 # Skill Improver
 
+> **If you reached this file from a scheduler that said "Run the skill-improver skill": do NOT call the `Skill` tool with `skill-improver` — it is not a registered skill and the call fails with "Unknown skill," wasting a turn (it has, on most past runs). You are already in the right place: read this file top to bottom and follow it directly.** See [Scheduling](#scheduling) for the entry-point details.
+
 A scheduled audit loop. Each run pulls newly finished agent conversations across configured projects, identifies steering moments, attributes each one to a specific skill (or the orchestration around it), and ships a single PR with all proposed skill edits — with the **why** spelled out in both the PR and the conversation that triggered the run.
 
 The goal is continuous, evidence-based skill improvement. Every time something goes wrong, the question is: *what went wrong, and who should have caught it?* If a skill could have prevented it, the skill changes.
@@ -247,12 +249,17 @@ Scope rules:
 
 ### Step 5b — Advance the cursors (before commit)
 
-Two cursors persist across runs on `main` and both live in tracked files:
+Each cursor exists in **two layers**:
 
-- `skills/skill-improver/state/state.json` — conversation cursor (per-project, per-source `started_at`)
-- `skills/skill-improver/state/briefs-state.json` — brief-artifact cursor (per-project `last_mtime`)
+- A **tracked** file that lands on `main` only when a run's PR merges:
+  - `skills/skill-improver/state/state.json` — conversation cursor (per-project, per-source `started_at`)
+  - `skills/skill-improver/state/briefs-state.json` — brief-artifact cursor (per-project `last_mtime`)
+- A **local floor** file the scripts maintain automatically under `~/.claude/skill-improver/` (anchored in home, *not* the checkout, so it survives the fresh worktree the scheduler spawns each run), advanced on *every* `--update-state` regardless of whether the PR ever merges:
+  - `~/.claude/skill-improver/state.local.json` and `~/.claude/skill-improver/briefs-state.local.json`
 
-The only way to land them without pushing to `main` directly is to include them in the same PR as the rest of the run. So advance both **before** committing in Step 6 — never leave them dirty in the working tree.
+The effective read cutoff is `max(tracked, local)`. This decoupling exists because the skill never pushes to `main` directly, so the tracked cursor only advances when a human merges the run's PR — and **closing findings PRs instead of merging is a normal outcome.** Before the floor cursor existed, a closed PR froze the tracked cursor and every later run re-pulled and re-derived the *same* conversations indefinitely (this actually happened: six consecutive PRs were closed unmerged and the loop re-treaded for a week). The floor cursor breaks that loop: a conversation is analyzed once and never re-pulled, even if its PR is closed. The tracked file still ships in the PR so the shared baseline catches up whenever a merge does land.
+
+The only way to land the *tracked* cursor without pushing to `main` directly is to include it in the same PR as the rest of the run. So advance both **before** committing in Step 6 — never leave the tracked files dirty in the working tree. (The floor files live under `~/.claude/skill-improver/`, outside the repo, so they never show up in `git status` or the PR — that's intended.)
 
 ```bash
 python3 "$SKILL_DIR/scripts/list_conversations.py" --update-state --from-batch /tmp/skill-improver-batch.jsonl > /dev/null
@@ -261,11 +268,13 @@ python3 "$SKILL_DIR/scripts/list_briefs.py" --update-state --from-batch /tmp/ski
 
 Each script advances its own state file to the newest value per project **seen in the Step 1 / Step 3b batch** — that's what `--from-batch` enforces, pointing each script at the JSONL it emitted earlier. This matters because Step 5b runs much later than the pull: without `--from-batch`, `--update-state` re-scans live and moves the cursor past any conversation or brief that arrived in between, so it never gets analyzed. Pass the batch files and the cursor only ever moves past what you actually read. The resulting working-tree changes are part of the commit in Step 6.
 
-**If the run aborts before Step 6** (push rejected, gh error, etc.), discard both state changes so the next run re-analyzes the same batch:
+**If the run aborts before Step 6** (push rejected, gh error, etc.), discard the *tracked* state changes so the shared baseline stays clean:
 
 ```bash
 git checkout -- skills/skill-improver/state/state.json skills/skill-improver/state/briefs-state.json
 ```
+
+The local floor cursors are intentionally **not** reverted here — they advance the moment Step 5b runs and stay advanced. That's by design: the conversations in this batch were already read, and their findings are in the run summary even if no PR ships, so re-deriving them next run would be pure waste. The floor only ever moves forward.
 
 ### Step 6 — Open one PR per run
 

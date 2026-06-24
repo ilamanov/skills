@@ -80,6 +80,17 @@ def load_json(path: str, default):
         return default
 
 
+def local_state_path(state_path: str) -> str:
+    """Path to the local floor cursor (advances every run regardless of merge).
+    Anchored under the user's home so it survives the fresh worktree the scheduler
+    spawns per run. Mirrors the same mechanism in list_conversations.py."""
+    base = os.path.basename(state_path)
+    name = base[:-len(".json")] if base.endswith(".json") else base
+    return os.path.join(
+        os.path.expanduser("~/.claude/skill-improver"), name + ".local.json"
+    )
+
+
 def save_json(path: str, data):
     os.makedirs(os.path.dirname(path), exist_ok=True)
     with open(path, "w") as f:
@@ -151,6 +162,10 @@ def main():
     args = parse_args()
     config = load_json(args.config, {"projects": []})
     state = load_json(args.state, {"projects": {}, "last_run_at": None})
+    # See list_conversations.py for the rationale: the tracked cursor only lands on
+    # main when a run's PR merges, so a local floor cursor (advanced every run) keeps
+    # closed PRs from causing re-audits of already-seen briefs.
+    local_state = load_json(local_state_path(args.state), {"projects": {}, "last_run_at": None})
 
     project_filter = args.project
     mode_filter = args.mode
@@ -169,7 +184,12 @@ def main():
             continue
 
         proj_state = state.get("projects", {}).get(name, {})
-        cursor = parse_iso(proj_state.get("last_mtime"))
+        local_proj_state = local_state.get("projects", {}).get(name, {})
+        cursor_candidates = [
+            c for c in (parse_iso(proj_state.get("last_mtime")),
+                        parse_iso(local_proj_state.get("last_mtime"))) if c
+        ]
+        cursor = max(cursor_candidates) if cursor_candidates else None
 
         effective_cutoff = since_override or cursor or first_run_cutoff
 
@@ -218,11 +238,20 @@ def main():
                     prev = advance_max.get(name)
                     if prev is None or mt > prev:
                         advance_max[name] = mt
+        now = iso_z(datetime.now(timezone.utc))
         projects_state = state.setdefault("projects", {})
+        local_projects_state = local_state.setdefault("projects", {})
         for name, mt in advance_max.items():
-            projects_state.setdefault(name, {})["last_mtime"] = iso_z(mt)
-        state["last_run_at"] = iso_z(datetime.now(timezone.utc))
+            iso = iso_z(mt)
+            projects_state.setdefault(name, {})["last_mtime"] = iso
+            # Local floor cursor: only ever moves forward, advances regardless of merge.
+            lprev = parse_iso(local_projects_state.get(name, {}).get("last_mtime"))
+            if lprev is None or mt > lprev:
+                local_projects_state.setdefault(name, {})["last_mtime"] = iso
+        state["last_run_at"] = now
         save_json(args.state, state)
+        local_state["last_run_at"] = now
+        save_json(local_state_path(args.state), local_state)
 
 
 if __name__ == "__main__":

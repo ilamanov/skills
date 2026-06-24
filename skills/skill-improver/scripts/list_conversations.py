@@ -94,6 +94,21 @@ def load_json(path: str, default):
         return default
 
 
+def local_state_path(state_path: str) -> str:
+    """Path to the local floor cursor, which advances every run regardless of whether
+    the run's PR ever merges. See `effective cursor` in main() for why this exists.
+
+    It is anchored under the user's home, NOT next to the tracked state file: the
+    scheduler spawns a fresh git worktree per run, so a floor stored inside the
+    per-worktree checkout would never survive to the next run. One stable path means
+    every run — whatever worktree it lands in — shares the same floor."""
+    base = os.path.basename(state_path)
+    name = base[:-len(".json")] if base.endswith(".json") else base
+    return os.path.join(
+        os.path.expanduser("~/.claude/skill-improver"), name + ".local.json"
+    )
+
+
 def save_json(path: str, data):
     os.makedirs(os.path.dirname(path), exist_ok=True)
     with open(path, "w") as f:
@@ -297,8 +312,27 @@ def main():
             sys.exit(f"unknown project: {args.project}")
 
     state = load_json(args.state, {"projects": {}})
-    # cursors[project][source] = last started_at seen
+    # cursors[project][source] = last started_at seen. This is the *tracked* cursor:
+    # it only lands on `main` when a run's PR merges (the skill never pushes to main
+    # directly). When the user closes findings PRs instead of merging — which is a
+    # normal outcome — the tracked cursor freezes and every subsequent run re-pulls
+    # and re-derives the same conversations. To stop that loop, we also keep a
+    # *local* floor cursor that advances every run regardless of merge (see Step 5b /
+    # update-state below). The effective read cutoff is the max of the two, so a
+    # conversation is analyzed once and never re-pulled, even if its PR is closed.
     cursors = state.setdefault("projects", {})
+    local_state = load_json(local_state_path(args.state), {"projects": {}})
+    local_cursors = local_state.setdefault("projects", {})
+
+    def effective_cursor(proj_name, src):
+        # ISO8601 strings with the same shape sort lexicographically, so max() is safe.
+        candidates = [
+            c for c in (
+                cursors.get(proj_name, {}).get(src),
+                local_cursors.get(proj_name, {}).get(src),
+            ) if c
+        ]
+        return max(candidates) if candidates else None
 
     sources = ["codex", "claude"] if not args.source else [args.source]
     results = []
@@ -328,9 +362,9 @@ def main():
         if key in seen_ids:
             return
         seen_ids.add(key)
-        # Precedence: --since > stored cursor > first-run window (only when no cursor yet)
-        cursor = cursors.get(proj_name, {}).get(src)
-        cutoff = args.since or cursor or first_run_cutoff
+        # Precedence: --since > effective cursor (max of tracked + local floor) >
+        # first-run window (only when neither cursor is set yet)
+        cutoff = args.since or effective_cursor(proj_name, src) or first_run_cutoff
         if cutoff and rec["started_at"] <= cutoff:
             return
         results.append(rec)
@@ -369,17 +403,27 @@ def main():
             with open(args.from_batch) as fh:
                 advance_records = [json.loads(line) for line in fh if line.strip()]
         if advance_records:
+            now = datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
             for rec in advance_records:
                 proj, src = rec.get("project"), rec.get("source")
                 if not proj or not src:
                     continue
-                cursors.setdefault(proj, {})
-                prev = cursors[proj].get(src)
-                if not prev or rec["started_at"] > prev:
-                    cursors[proj][src] = rec["started_at"]
+                ts = rec["started_at"]
+                # Tracked cursor (lands on main only if this run's PR merges).
+                prev = cursors.setdefault(proj, {}).get(src)
+                if not prev or ts > prev:
+                    cursors[proj][src] = ts
+                # Local floor cursor (advances now, regardless of merge) so closed
+                # PRs never cause re-derivation of already-analyzed conversations.
+                lprev = local_cursors.setdefault(proj, {}).get(src)
+                if not lprev or ts > lprev:
+                    local_cursors[proj][src] = ts
             state["projects"] = cursors
-            state["last_run_at"] = datetime.utcnow().isoformat() + "Z"
+            state["last_run_at"] = now
             save_json(args.state, state)
+            local_state["projects"] = local_cursors
+            local_state["last_run_at"] = now
+            save_json(local_state_path(args.state), local_state)
 
     print(f"# {len(results)} records", file=sys.stderr)
 

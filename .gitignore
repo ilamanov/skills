@@ -1,0 +1,9 @@
+# Python bytecode — list_conversations.py / list_briefs.py generate these on every
+# run; without this they get swept into PRs by `git add -A`.
+__pycache__/
+*.pyc
+
+# skill-improver local floor cursors normally live under ~/.claude/skill-improver/
+# (checkout-independent, see scripts/list_conversations.py). This entry is a safety
+# net in case a run is pointed at an in-repo state path with --state.
+skills/skill-improver/state/*.local.json
