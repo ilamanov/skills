@@ -13,12 +13,14 @@ This skill is paired with the `ticket` skill. Normally a Linear ticket already e
 
 How the skill was invoked determines whether a ticket is involved at all:
 
-- **Ticket mode (default).** The user names or asks you to pick up a Linear ticket ("ship FOO-123", "ship the feed-pagination ticket", "pick up a ticket"). Run the full flow starting at Step 1.
+- **Ticket mode (default).** The user names or asks you to pick up a Linear ticket ("ship FOO-123", "ship the feed-pagination ticket", "pick up a ticket"), **or describes a change to make inline with no ticket** ("$ship the mobile sidebar doesn't slide in — fix it", "$ship remove the upgrade button"). An inline change request is still ticket mode: there's just no ticket id, so skip the Linear steps (Step 1, the status transitions, the progress log) and treat the described change as the work to implement in Step 5a. Then run the rest of the flow exactly as written — implement, **then** continue all the way through deslop, the stack, the PR submit, and the review loop. The absence of a ticket id does not shrink the job to "just make the change."
 - **Existing-changes mode.** The user points at work already done locally and just wants it shipped as a PR — e.g. **"ship these changes as a PR"**, "open a PR for what I've got", "ship this diff". This is invoked when code has already changed locally without starting from a ticket. In this mode:
   - **Skip ticket creation and ticket selection entirely** — do **not** read the `ticket` skill, do **not** create a Linear ticket, and do **not** browse for one to attach. Only create or attach a ticket if the user explicitly asks for it in this invocation.
   - **Skip the Linear steps** — Step 1 (Select ticket), the Linear status transitions, and the Linear progress log. There's no ticket, so there's nothing to move or comment on. PR bodies omit the `Closes <LINEAR-ID>` line (there's no id).
   - **Jump to the PR flow.** Treat the existing working-tree changes as the implemented end state (the output of Step 5a) and continue from there: Step 5b (deslop), Step 5c (review the diff / decide on stack breakup), Step 5d (split into a stack), Step 6 (submit + review loop), and Step 7 (merge) — all unchanged.
   - Everything else (approval gates, review loop, merge gate, screenshots, no-force-push rules) applies exactly as in ticket mode.
+
+**What "ship" means — don't stop at the local edit.** Invoking `$ship` is a commitment to take the change all the way to an open PR with the review loop running (and ultimately the merge gate) — not just to implement it. A local edit that passes lint/typecheck/tests and renders correctly is **Step 5a of ~7**, not the finish line: it is "implemented and verified," which is not the same as "shipped." So don't report the work as "shipped" or "done" while it's still only a working-tree diff — that overstates what happened and forces the user to notice and say "did you actually ship this?" Once Step 5a verifies, keep going on your own through 5b–7 without waiting to be told; the only stops are the skill's real gates (stack breakup if it applies, and merge).
 
 ## Required tools
 
