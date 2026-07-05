@@ -5,6 +5,7 @@ import {
   archiveSession,
   unarchiveSession,
   deleteClaudeSession,
+  resumeCommand,
   formatWhen,
   timeAgo,
 } from '../lib/api.js'
@@ -20,6 +21,19 @@ function Field({ label, value, mono, variant }) {
 function SessionCard({ session, onMutated, flash }) {
   const [open, setOpen] = useState(false)
   const [busy, setBusy] = useState(false)
+  const [copied, setCopied] = useState(false)
+
+  const copyResume = async (event) => {
+    event.stopPropagation()
+    const command = resumeCommand(session)
+    try {
+      await navigator.clipboard.writeText(command)
+      setCopied(true)
+      setTimeout(() => setCopied(false), 1500)
+    } catch {
+      flash(`Copy failed — resume with: ${command}`, true)
+    }
+  }
 
   const toggleArchive = async (event) => {
     event.stopPropagation()
@@ -88,6 +102,9 @@ function SessionCard({ session, onMutated, flash }) {
         <${Field} label="Working directory" value=${session.cwd} mono=${true} />
         <${Field} label="Transcript" value=${session.transcriptPath} mono=${true} />
         <div class="session__actions">
+          <button class="btn btn--sm" onClick=${copyResume}>
+            ${copied ? '✓ Copied' : 'Copy resume command'}
+          </button>
           ${session.source === 'codex'
             ? html`<button class="btn btn--sm" disabled=${busy} onClick=${toggleArchive}>
                 ${busy ? '…' : session.archived ? 'Unarchive' : 'Archive'}
@@ -102,9 +119,8 @@ function SessionCard({ session, onMutated, flash }) {
   `
 }
 
-export function Sessions({ sessions, onMutated, flash }) {
+export function Sessions({ sessions, filter, onFilter, onMutated, flash }) {
   const [query, setQuery] = useState('')
-  const [filter, setFilter] = useState('all')
 
   const normalized = query.trim().toLowerCase()
   const visible = sessions.filter((s) => {
@@ -136,7 +152,7 @@ export function Sessions({ sessions, onMutated, flash }) {
           (key) => html`<button
             key=${key}
             class=${filter === key ? 'is-active' : ''}
-            onClick=${() => setFilter(key)}
+            onClick=${() => onFilter(key)}
           >${key === 'all' ? 'All' : key === 'codex' ? 'Codex' : 'Claude'}</button>`,
         )}
       </div>

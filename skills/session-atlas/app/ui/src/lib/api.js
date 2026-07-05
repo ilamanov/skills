@@ -70,6 +70,16 @@ export function removeWorktree(project, worktreePath, force = false) {
   })
 }
 
+// Shell command to resume a session in its original working directory. Both CLIs
+// key sessions by cwd, so the `cd` makes the copied command runnable as-is.
+export function resumeCommand(session) {
+  const dir = String(session.cwd || '').replace(/'/g, `'\\''`)
+  const cd = dir ? `cd '${dir}' && ` : ''
+  return session.source === 'codex'
+    ? `${cd}codex resume ${session.id}`
+    : `${cd}claude --resume ${session.id}`
+}
+
 // "2026-06-07T21:48:36Z" -> "Jun 7, 9:48 PM" (relative-ish, compact).
 export function formatWhen(iso) {
   if (!iso) return ''
