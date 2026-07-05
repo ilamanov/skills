@@ -17,6 +17,8 @@ The invocation tells you. Three flavors:
 - **A Linear ticket is referenced** — read it via the Linear MCP to understand what to build. The ticket is just the spec here: read it, build it, done. Leave the ticket itself alone (status, comments, assignee) unless the user asks. If the invocation references Linear and the Linear MCP isn't available, stop and tell the user — don't guess at the ticket's contents.
 - **A plain-text ask** — the prompt itself describes the change. Just build it.
 
+One special case: if the working tree holds a skeleton from the `probe` skill (stub files sketching the change's load-bearing decisions — schema, interfaces, signatures, module layout), that skeleton is the **agreed architecture** — the user already reviewed it, possibly after shaping the whole thing with `advisor` first (`advisor` → `probe` → `ship` is the pipeline for very complex changes). Fill in the details on top of it; don't redesign the shape it laid down, and raise it explicitly if implementation genuinely forces a deviation.
+
 ## Tools
 
 Nothing is strictly required. Linear MCP, Graphite (`gt`), and `gh` all help, but work with what's installed:
