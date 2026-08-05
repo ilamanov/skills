@@ -350,11 +350,31 @@ EOF
 
 Rules:
 - **One PR per run** in one mode — findings or cleanup, never both. See Step 4b for why.
-- **Do not auto-merge.** PRs are for human review. If `gh pr merge --auto` is tempting, resist it.
+- **Any PR that changes a skill stays open for human review.** Findings-mode and cleanup-mode PRs are the reviewer's call — never merge them yourself, and never reach for `gh pr merge --auto` on them. The one exception is the state-only case handled in Step 6b.
 - **Never push to `main` directly.** The skill always opens a PR even for tiny edits.
-- **Open the PR if any of:** (a) Step 4 produced edits under `skills/` (from conversation findings *or* brief audit), (b) Step 0's `npx skills update` produced changes under `.agents/skills/`, (c) Step 4b ran skill-cleaner and it made changes, or (d) Step 5b advanced either cursor. Any one is worth a PR — those changes still need a human to merge so the cursors land on `main`.
+- **Open the PR if any of:** (a) Step 4 produced edits under `skills/` (from conversation findings *or* brief audit), (b) Step 0's `npx skills update` produced changes under `.agents/skills/`, (c) Step 4b ran skill-cleaner and it made changes, or (d) Step 5b advanced either cursor. Any one is worth a PR — nothing lands on `main` without one, including the cursors.
 - **If the run analyzed zero inputs** (both pullers returned empty batches and no meta-skill updates), skip the PR entirely — nothing to advance, nothing to ship. Go to Step 7 with "no changes warranted".
-- **State-only PRs are normal.** A run with no findings, no cleanup, and no meta-skill updates but with a non-empty batch of conversations and/or briefs should still open a PR containing only the cursor bumps — that's how the cursors persist. Title and body should make clear it's a cursor-only run.
+- **State-only PRs are normal.** A run with no findings, no cleanup, and no meta-skill updates but with a non-empty batch of conversations and/or briefs should still open a PR containing only the cursor bumps — that's how the cursors persist. Title and body should make clear it's a cursor-only run. Step 6b then merges it.
+
+### Step 6b — Auto-merge the PR when the run is state-only
+
+A state-only run ships nothing but the two cursor files. There is no judgment call for a human to make: the cursors have to land on `main` or the next run re-pulls the same batch, and holding them for review just adds latency and a stack of identical PRs to babysit. So when — and only when — the diff is cursor-only, merge it yourself.
+
+The gate is the diff, not your recollection of what the run did. Check it against the branch point:
+
+```bash
+git diff --name-only origin/main...HEAD
+```
+
+Merge only if every path in that output is one of `skills/skill-improver/state/state.json` or `skills/skill-improver/state/briefs-state.json` (one or both). Anything else in the list — a `SKILL.md`, a script, an `.agents/skills/` refresh from Step 0 — means the run isn't state-only, so leave the PR open for review no matter which mode label it carried.
+
+```bash
+gh pr merge --squash --delete-branch
+```
+
+Squash keeps `main`'s history one commit per run, matching how these PRs have been merged so far. If the merge fails (branch protection appears, a required check is pending, a conflict), don't retry or force it — leave the PR open and say so in Step 7.
+
+If any of this makes you want to widen the exception — "this findings PR is small", "the meta-skill refresh is upstream anyway" — don't. The narrowness is what makes auto-merging safe: skill content always gets a human read.
 
 ### Step 7 — Tell the user in the conversation what happened and why
 
@@ -362,7 +382,7 @@ Post a summary in the conversation that triggered this run (or stdout if schedul
 
 1. Whether the pre-flight ran cleanly — main-sync outcome (fast-forwarded / already up to date / skipped because dirty or diverged) and whether `npx skills update` changed any external meta-skill under `.agents/skills/` (one line — which meta-skills + a sentence on what changed if non-trivial).
 2. How many conversations were analyzed and how many briefs audited (Step 3b); how many of each had findings; how many findings led to edits.
-3. Which mode this run ended up in — findings, cleanup, or no-op — and the PR URL (or "no PR opened — no changes warranted").
+3. Which mode this run ended up in — findings, cleanup, or no-op — and the PR URL (or "no PR opened — no changes warranted"), plus whether it was auto-merged under Step 6b or is waiting for review. If a Step 6b merge was attempted and failed, say why.
 4. If findings mode: for each skill edited, one sentence on the pattern and one sentence on the fix. Call out separately whether the finding came from conversation analysis or brief audit. Plus notable findings that *didn't* become edits, so the user knows nothing was hidden.
 5. If cleanup mode: which skill was cleaned, why it was the chosen candidate, and the size delta from skill-cleaner's report.
 
@@ -380,7 +400,7 @@ Common self-improvements to watch for:
 - The "two or more instances" bar produced too many or too few edits → adjust
 - A new file format appeared in `~/.claude/projects/` or `~/.codex/` → extend the parser
 
-When self-improving, the same Step 5-7 rules apply: PR, explain, do not auto-merge.
+When self-improving, the same Step 5-7 rules apply: PR, explain, and leave it for review — an edit to this file is skill content, so Step 6b's state-only exception never covers it.
 
 ## Scheduling
 
