@@ -29,7 +29,7 @@
       "source": "tldraw/tldraw",
       "sourceType": "github",
       "skillPath": "skills/pr-walkthrough/SKILL.md",
-      "computedHash": "be7da082321633d6f038a8b40b1dd7ac037391bac22a34599809bda2a39dfb14"
+      "computedHash": "ad2bdedf4170b6bea900bf2b607ddb9438f8990becc3bac8b88437940258cdca"
     },
     "skill-creator": {
       "source": "anthropics/skills",
