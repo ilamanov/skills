@@ -59,7 +59,9 @@ Codex and Devin review the PRs remotely. **Listen to both** — comments from `@
 
 **Triggering is automatic.** The reviewers auto-trigger in a smart way after every push — you do **not** post a comment to kick off a review, and you do **not** retrigger after pushing fixes. If a push doesn't trigger a review, that's the signal the change was small enough not to need one — take it at face value and move on. Never manually request a review to force another round.
 
-**How to read the signals.** Each agent posts its status on the PR — a review-in-progress indicator (e.g. Codex's 👀 on the PR description), a review comment when it has findings, or a clean bill when it doesn't (e.g. Codex's 👍 on the PR description with no new comment). Read each agent's own comments and reactions to tell in-progress / findings / clean apart, per agent. A PR isn't clean until every agent reviewing it has come back clean.
+**How to read the signals.** Each agent posts its status on the PR — a review-in-progress indicator (e.g. Codex's 👀 on the PR description), a review comment when it has findings, or a clean bill when it doesn't (e.g. Codex's 👍 on the PR description with no new comment). Read each agent's own comments and reactions to tell in-progress / findings / clean apart, per agent.
+
+**What counts as clean, precisely** — a PR is clean when, for every agent reviewing it, the most recent review it actually ran came back with no findings you'd fix. This resolves the one case that would otherwise be ambiguous: after you push fixes, a review that _doesn't retrigger_ (the change was too small to warrant one) counts as that agent accepting the current state — treat the prior clean/handled signal as still standing. Don't wait for a fresh clean signal that will never come, and don't report a PR clean while an agent still has an open review round in progress or unaddressed findings. In short: the last signal an agent gave is the one that counts; silence after a too-small push preserves it, it doesn't reset it.
 
 The loop, per round:
 
@@ -97,7 +99,7 @@ Judge every finding against these — a finding whose premise contradicts one of
 - **Scale/concurrency the product won't hit** — race guards on single-user flows, advisory locks against a double-click, rate limiting on internal endpoints, race fixes on a cron that runs one at a time.
 - **Backward-compat for data or callers that don't exist** — no persisted old-shape data, no external consumers → the right move is a clean break: rename it, change the contract, drop the old value. No shims, dual-writes, deprecation windows, or migrations for data that isn't there. (If you _can't_ confidently establish there's no existing usage — a populated table, a shipped feature, a public API — don't assume it away; fix conservatively or flag it.)
 - **Deploy shapes the project doesn't have** — code-runs-before-its-migration windows, cross-version rolling-deploy traffic on a single-instance app.
-- **Anything that would need a big overhaul / rearchitecture to satisfy** — not worth it at this stage. Note it as ignored and move on rather than pulling the thread.
+- **Optional hardening that would need a big overhaul / rearchitecture** — defensive or nice-to-have improvements whose only cost is complexity and whose fix means substantial restructuring. Not worth it at this stage; note as ignored and move on rather than pulling the thread. **This bucket is optional hardening only.** If the large fix addresses a _real_ correctness, data-loss, or security defect (see Fix), it does **not** belong here — don't bury it as ignored; hold it for the user (see "Real defects whose proper fix is large" below).
 - **Accessibility** (see above).
 - **Nits and style-only** comments.
 - **Fix cascades** — a finding that only exists because an earlier defensive fix opened the very window it now guards. The whole chain is skippable; the cascade is the signal the first fix shouldn't have landed.
@@ -110,12 +112,19 @@ Judge every finding against these — a finding whose premise contradicts one of
 
 When a finding is genuinely ambiguous — you can't tell whether it's real without info you don't have (most often: whether there's existing usage that a "breaking change" would hurt) — don't guess. Fix conservatively or surface that one finding to the user; the rest of the round proceeds without waiting.
 
+### Real defects whose proper fix is large
+
+**The Fix rules always take precedence over the ignore buckets** — a realistic correctness, data-loss, or security defect is never ignored just because its fix is large. But a fix that needs substantial restructuring is too big to make autonomously inside the review loop: it's the kind of change the user should see and split deliberately, not something to slip in unreviewed. So for a real defect whose proper fix is large:
+
+- **Don't attempt the big overhaul on your own**, and **don't silently declare the PR ready** as if the finding were noise — this is not the ignore path.
+- **Hold it for the user.** Record it as an explicit skip on the PR (thread reply + `## Explicit skips` entry) noting the fix is real but large, and **highlight it prominently at the very end** (see the report) as a decision only the user makes — they decide whether it's worth fixing now. If a small, safe partial mitigation genuinely exists, you may apply it, but don't force a rearchitecture.
+
 ### When to stop the review phase
 
 The reviewers auto-trigger after each push, so the loop naturally winds down as fixes land. Stop when **both**:
 
 - **CI is green**, and
-- **the review has converged** — the latest round's incremental findings are all small: nits, style, or the unrealistic/over-defensive/accessibility buckets above. In other words, nothing left that the rules say to Fix.
+- **the review has converged** — the latest round's incremental findings are all small: nits, style, or the unrealistic/over-defensive/accessibility buckets above. In other words, nothing left that the rules say to Fix. (A real-but-large defect you've held for the user doesn't keep the loop running — you're not going to auto-fix it — but it isn't "resolved" either: it must surface prominently in the end report, not vanish into convergence.)
 
 Concretely: once a round comes back with only ignorable findings (or a push produces no new review at all, meaning the reviewers judged it too minor to re-review), the review is done. **Don't keep pushing trivial changes just to chase a spotless bill from the bots** — a green checkmark on real bugs is the bar, not zero comments.
 
@@ -124,13 +133,17 @@ Concretely: once a round comes back with only ignorable findings (or a push prod
 When the loop finishes, give the user the full picture — every finding raised across the whole review, grouped by PR. For each one:
 
 - **What it was**, in plain terms.
-- **Fixed** — how, and the commit — **or Ignored** — with the reason.
+- **Fixed** — how, and the commit — **Ignored** — with the reason — or **Held for your call** — a real correctness/data-loss/security defect whose proper fix is large (see that section above).
 
-**Call out the ignored findings explicitly** and explain _why_ each was ignored (single-tab assumption, MVP scale, accessibility deferred, over-defensive, would-need-an-overhaul, etc.). This is the deliverable of the automatic loop: the user sees exactly what the bots found and what you decided about each, without having to open the PRs.
+**Call out the ignored findings explicitly** and explain _why_ each was ignored (single-tab assumption, MVP scale, accessibility deferred, over-defensive, optional hardening that'd need an overhaul, etc.).
+
+**Highlight the "held for your call" findings most prominently** — in their own short section at the very end, separate from the ignored noise. For each, explain the bug, how it would bite (and how likely), and roughly what fixing it would take, so you can decide whether it's worth doing now. These are the ones you might actually want to act on; don't let them blend into the ignore list.
+
+This is the deliverable of the automatic loop: the user sees exactly what the bots found and what you decided about each — fixed, ignored, or held for their decision — without having to open the PRs.
 
 ## Rules
 
-- **Autonomous review.** Fix the real bugs and ignore the unrealistic / over-defensive / accessibility findings yourself — don't wait for per-finding approval. The only judgment call left with the user is how to split complex work.
+- **Autonomous review.** Fix the real bugs and ignore the unrealistic / over-defensive / accessibility findings yourself — don't wait for per-finding approval. The one exception: a real correctness/data-loss/security defect whose proper fix is large isn't auto-fixed and isn't ignored either — hold it and surface it at the end for the user to decide. Beyond that, the only judgment call left with the user is how to split complex work.
 - **Listen to both `@codex` and `@devin`.** Ignore all other review bots (CodeRabbit, Greptile, etc.).
 - **Never manually trigger or retrigger a review.** Reviews auto-trigger after every push; a push that produces no review means the change was too small to need one. Don't post `@codex review` / `@devin review` or otherwise force a round.
 - Every ignored finding gets both a reply on its thread and an entry in the PR's `## Explicit skips` section, and is reported at the end with the reason.
