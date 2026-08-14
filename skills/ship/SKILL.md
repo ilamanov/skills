@@ -1,13 +1,13 @@
 ---
 name: ship
-description: Ship changes as a PR (or Graphite stack) with an interactive review loop. Entry can be anything - changes already sitting in the working tree, a Linear ticket to implement, or just a plain-text description of what to build. Implements if needed, split into a stack, then loops on review findings - always confirming with the user which findings to fix before fixing them. Stops when everything is green; merging is the user's call. Use when the user says "ship", "ship these changes", "ship FOO-123", "open a PR for this", or describes a change and wants it shipped.
+description: Ship changes as a PR (or Graphite stack) with an automatic review loop. Entry can be anything - changes already sitting in the working tree, a Linear ticket to implement, or just a plain-text description of what to build. Implements if needed, splits into a stack, then automatically triages review findings from Codex and Devin - fixing real bugs and ignoring unrealistic, overly-defensive, and accessibility findings without asking per finding - and reports at the end what was found, fixed, and ignored. Stops when everything is green; merging is the user's call. Use when the user says "ship", "ship these changes", "ship FOO-123", "open a PR for this", or describes a change and wants it shipped.
 ---
 
 # Ship
 
-Take something — existing changes, a ticket, or just a description — and get it onto a clean, reviewed PR stack. Stop when it's green. The user merges on their own time.
+Take something — existing changes, a ticket, or just a description — and get it onto a clean, reviewed PR stack. Handle the review loop yourself: fix the real bugs, ignore the noise, and report what you did. Stop when it's green. The user merges on their own time.
 
-The whole skill runs on two habits: keep the user in the loop on judgment calls (which review findings to fix, how to split complex work), and handle the mechanical parts yourself.
+The whole skill runs on two habits: keep the user in the loop on the one judgment call that's theirs (how to split complex work), and handle the mechanical parts — including the entire review loop — yourself.
 
 ## What's being shipped
 
@@ -53,56 +53,87 @@ Then split: snapshot the end state, rebuild branch by branch, each branch passin
   - If the view renders empty just because there's no data, mock some data for the shot, then revert the mock so it never reaches the diff.
   - Embed as GitHub attachment URLs (`user-attachments/...`), not files committed to the branch — repo links don't render reliably in PR bodies and throwaway images bloat the diff. After editing, double-check the images actually render.
 
-## Review loop (interactive — this is the important part)
+## Review loop (automatic — this is the important part)
 
-Codex reviews the PRs remotely. **Only Codex** — ignore CodeRabbit, Greptile, and any other bot entirely. Don't triage their comments, don't reply to them, don't let them block anything.
+Codex and Devin review the PRs remotely. **Listen to both** — comments from `@codex` and from `@devin`. Ignore CodeRabbit, Greptile, and any other bot entirely. Don't triage their comments, don't reply to them, don't let them block anything.
 
-**How to read Codex's signals.** Codex starts a review automatically when a PR is created — no need to tag it for the first round. Its status shows up as reactions:
+**Triggering is automatic.** The reviewers auto-trigger in a smart way after every push — you do **not** post a comment to kick off a review, and you do **not** retrigger after pushing fixes. If a push doesn't trigger a review, that's the signal the change was small enough not to need one — take it at face value and move on. Never manually request a review to force another round.
 
-- 👀 on the PR description = review in progress. (On retriggered rounds, the 👀 also lands on the comment that triggered it.)
-- Findings → it posts a review comment and removes the 👀.
-- Clean → it posts 👍 on the PR description instead (and sometimes on the triggering comment). 👍 with no new comment means "no findings" — that's the clean bill for the round.
+**How to read the signals.** Each agent posts its status on the PR — a review-in-progress indicator (e.g. Codex's 👀 on the PR description), a review comment when it has findings, or a clean bill when it doesn't (e.g. Codex's 👍 on the PR description with no new comment). Read each agent's own comments and reactions to tell in-progress / findings / clean apart, per agent. A PR isn't clean until every agent reviewing it has come back clean.
 
 The loop, per round:
 
-1. **Wait for findings.** Codex takes ~6–7 minutes, so schedule a check-in around then (ScheduleWakeup or whatever the harness gives you) rather than blocking or making the user ping you. On each check-in, read the signals above — reactions on the PR description (and triggering comment) plus any new Codex comments — to tell in-progress / findings / clean apart.
-2. **Report, don't fix.** When findings land, print them for the user. For each finding give:
-   - A link to the finding.
-   - **What it's about, in plain terms** — explain the issue simply, without assuming the user has the diff in their head. No reviewer-speak.
-   - **How the user would experience it** (when applicable) — what actually goes wrong from their perspective if it ships: what they'd see, what would break, when it would surface. If it's invisible to users (style, internal robustness), say that instead.
-   - **What the fix would look like** — brief: is it a trivial one-liner or a more involved change, and roughly how it'd be done ("add a null check before the lookup", "restructure the handler to await the write before responding").
-   - Your honest take on whether it's valid — Fix or Skip with a one-liner why (see "Judging findings" below).
+1. **Wait for findings.** Reviews take a while to land (Codex is typically ~6–7 minutes; Devin similar), so schedule a check-in on a **10-minute** window (ScheduleWakeup or whatever the harness gives you) rather than blocking or making the user ping you. On each check-in, read the signals above — reactions and any new comments from Codex and Devin — to tell in-progress / findings / clean apart.
+2. **Triage and fix autonomously.** When findings land, run each one through the rules in **"What to fix, what to ignore, and when to stop"** below. You decide Fix vs. Ignore yourself — do **not** wait for the user to pick. Fix the real ones; ignore the noise.
+3. **Act on the findings.**
+   - **Fix**: make the change on the branch that owns the code, commit and push as new commits (never amend or force-push — the user reviews the PR commit by commit, and rewritten history destroys that), and reply on the finding's thread ("Fixed in `<sha>`: <one-line how>").
+   - **Ignore**: reply on the finding's thread ("Ignoring: `<reason>`") **and** record it in an `## Explicit skips` section at the bottom of the PR body — one bullet per ignored finding with the reason, written for the reviewer so a later pass doesn't re-flag it. Every finding gets closed out one way or the other — nothing left hanging.
+4. **No manual retrigger.** Pushing the fixes auto-triggers the next review round if the change warrants it. Just schedule the next 10-minute check-in. New findings → back to step 2, same rules. If a push produces no new review, the reviewers judged it too small to re-review — that's a stop signal, not something to override.
+5. Also keep CI green throughout — treat a red check like a finding you can fix without asking (it's not a judgment call, it's broken).
 
-   Then **wait**. Never fix a finding without the user saying which ones to fix — not even the obviously-valid ones.
+**Done when**: all checks are green and the review has converged (see "when to stop" below) — every finding either fixed or explicitly ignored, and the incremental findings have dwindled to nits/unrealistic edge cases. Then **report** (see the reporting rule in the next section), say the PRs are ready, and stop — the PRs are the deliverable, and merging is the user's call on their own time.
 
-3. **Act on the user's picks.** The default is fix-and-push: "fix it", "fix 1 and 3", or any plain approval means commit and push the fixes as new commits (never amend or force-push — the user reviews the PR commit by commit, and rewritten history destroys that), reply on each finding's thread ("Fixed in `<sha>`" for fixes, "Skipping: `<reason>`" for the rest), update the PR description with the skips (step 4), and retrigger the review (step 5). Every Codex comment gets closed out one way or the other — nothing left hanging.
+## What to fix, what to ignore, and when to stop
 
-   The exception is when the user explicitly says **"locally"** — "fix it locally", "fix locally first" — which means: make the fixes in the working tree only, no commits, no pushes. They want to eyeball the fix before it touches the PR. Show them what changed and wait; a later "push it" (or similar) graduates the local fixes to the PR via the same fix-and-push sequence above.
+This is the judgment that used to be the user's; now it's yours. For **every new finding**, before touching anything, analyze it:
 
-4. **Record the skips in the PR description.** Keep an `## Explicit skips` section at the bottom of the body — one bullet per skipped finding with the reason. This is what stops the next round from re-flagging the same thing, so write the reason for the reviewer, not for the user.
-5. **Retrigger the review** (`@codex review`) and schedule the next ~7-minute check-in. New findings → back to step 2, same rules: report, wait for the user, then act.
+- **What is the issue, exactly?** State the bug or risk in plain terms.
+- **How likely is it to actually happen?** Frequent, rare, or basically never at this product's scale?
 
-Also keep CI green throughout — treat a red check like a finding you can fix without asking (it's not a judgment call, it's broken).
+Then decide. **Err on the side of ignoring.** The reviewers (Codex and Devin) flag as if every product were a mature, high-scale, multi-tenant, security-hardened, fully-accessible system. It isn't — **most of these products are MVP-stage**: few or no users, no data in the old shape, no external API consumers, no budget yet for hardening. Reviewers surface a lot of unrealistic edge cases that aren't worth fixing, and chasing all of them burns time the MVP can't spare.
 
-**Done when**: all checks green, no unaddressed Codex findings, every finding either fixed or explicitly skipped. Say so and stop — the PRs are the deliverable, and merging is the user's call on their own time.
+### Baseline assumptions about how the product is used
 
-## Judging findings
+Judge every finding against these — a finding whose premise contradicts one of these is an Ignore:
 
-When you report findings, give the user a real opinion, and calibrate it to what this product actually is. Most of what goes through this skill is MVP-stage: few or no users, no data in the old shape, no external API consumers. Reviewers don't know that — they flag as if everything is a mature multi-tenant system.
+- **The user works in a single tab.** Ignore anything whose setup is "suppose two tabs / two devices / two sessions issue a query at almost the same time" — optimistic-concurrency version checks, `expectedVersion`/compare-and-swap, lost-update and stale-write races, ETag/If-Match plumbing. A single user doesn't fire near-simultaneous mutations to race their own data. (The one exception is genuinely multi-actor state — two different _people_ editing the same record, or a background job racing a user action — judge that on its own.)
+- **The user isn't trying to break the product.** Ignore hardening against a user maliciously feeding bad input to sabotage their own experience.
+- **But real attackers are real.** Obvious security holes an outside attacker could exploit against an important part of the product **must be fixed** — especially anything on the **financial** side (payments, billing, balances, credits, anything touching money). Guard the money and the sensitive surfaces against hackers even at MVP stage. Security on the important paths is not "over-defensive"; it's the exception to err-on-ignoring.
+- **The products aren't accessibility-friendly yet, and that's a deliberate call.** There's no budget for accessibility at this stage — the company prioritizes speed of development, and a11y comes later. **Ignore all accessibility findings**: missing ARIA attributes, keyboard-navigation gaps, focus management, color-contrast, screen-reader support, alt text, and the like. Note them as ignored-for-now, don't fix them.
 
-So before calling a finding valid, ask what it implicitly assumes and whether that holds here:
+### Ignore by default
 
-- **Backward compat / "this is a breaking change"** — if there's no existing usage, no persisted data in the old shape, and no external callers, the right move is a clean break. Shims, dual-writes, deprecation windows, and data migrations for data that doesn't exist are complexity with no payoff. Lean Skip. But if you _can't_ confidently establish there's no existing usage (populated table, shipped feature, public API), say so and let the user decide — don't assume it away.
-- **Scale/concurrency the product won't hit** — race guards on single-user flows, advisory locks against a double-click, rate limiting on internal endpoints. Lean Skip.
-- **Concurrent tabs / sessions / devices by the same user** — stale-write and lost-update findings whose setup is "suppose the user has two tabs open", "two devices", or "two branches generating at once": optimistic-concurrency version checks, `expectedVersion` params, compare-and-swap on shared state, ETag/If-Match plumbing. Lean Skip, hard. These come up constantly and the premise almost never happens — a single user doesn't fire near-simultaneous mutations from separate tabs to race their own data, and the UI usually blocks a second in-flight action within a tab anyway. It's defensive hardening, not a bug real users hit. Skip with a reason like "concurrent generations from multiple tabs/devices are unsupported at this stage" so the next round doesn't re-flag it. The exception is genuinely multi-actor state — two different _people_ editing the same record, or a background job racing a user action — which isn't this pattern and should be judged on its own.
-- **Deploy shapes the project doesn't have** — code-runs-before-migration windows, cross-version rolling-deploy traffic on a single-instance app. Lean Skip.
-- **Real bugs** — actual correctness, security, or data-loss issues that would bite at the current scale. Lean Fix.
-- **Fix cascades** — if a finding only exists because an earlier defensive fix created the window it guards, the whole chain is probably skippable.
+- **Multi-tab / multi-device / multi-session races** (see above).
+- **Scale/concurrency the product won't hit** — race guards on single-user flows, advisory locks against a double-click, rate limiting on internal endpoints, race fixes on a cron that runs one at a time.
+- **Backward-compat for data or callers that don't exist** — no persisted old-shape data, no external consumers → the right move is a clean break: rename it, change the contract, drop the old value. No shims, dual-writes, deprecation windows, or migrations for data that isn't there. (If you _can't_ confidently establish there's no existing usage — a populated table, a shipped feature, a public API — don't assume it away; fix conservatively or flag it.)
+- **Deploy shapes the project doesn't have** — code-runs-before-its-migration windows, cross-version rolling-deploy traffic on a single-instance app.
+- **Anything that would need a big overhaul / rearchitecture to satisfy** — not worth it at this stage. Note it as ignored and move on rather than pulling the thread.
+- **Accessibility** (see above).
+- **Nits and style-only** comments.
+- **Fix cascades** — a finding that only exists because an earlier defensive fix opened the very window it now guards. The whole chain is skippable; the cascade is the signal the first fix shouldn't have landed.
 
-Present each finding as Fix or Skip with a one-liner why, but remember: it's a recommendation. The user makes the call.
+### Fix
+
+- **Real correctness bugs** that would bite at the current scale — wrong results, broken flows, crashes on realistic input.
+- **Data-loss bugs.**
+- **Security issues a real attacker could exploit**, especially on financial or otherwise sensitive/important paths.
+
+When a finding is genuinely ambiguous — you can't tell whether it's real without info you don't have (most often: whether there's existing usage that a "breaking change" would hurt) — don't guess. Fix conservatively or surface that one finding to the user; the rest of the round proceeds without waiting.
+
+### When to stop the review phase
+
+The reviewers auto-trigger after each push, so the loop naturally winds down as fixes land. Stop when **both**:
+
+- **CI is green**, and
+- **the review has converged** — the latest round's incremental findings are all small: nits, style, or the unrealistic/over-defensive/accessibility buckets above. In other words, nothing left that the rules say to Fix.
+
+Concretely: once a round comes back with only ignorable findings (or a push produces no new review at all, meaning the reviewers judged it too minor to re-review), the review is done. **Don't keep pushing trivial changes just to chase a spotless bill from the bots** — a green checkmark on real bugs is the bar, not zero comments.
+
+### Report at the end (always)
+
+When the loop finishes, give the user the full picture — every finding raised across the whole review, grouped by PR. For each one:
+
+- **What it was**, in plain terms.
+- **Fixed** — how, and the commit — **or Ignored** — with the reason.
+
+**Call out the ignored findings explicitly** and explain _why_ each was ignored (single-tab assumption, MVP scale, accessibility deferred, over-defensive, would-need-an-overhaul, etc.). This is the deliverable of the automatic loop: the user sees exactly what the bots found and what you decided about each, without having to open the PRs.
 
 ## Rules
 
+- **Autonomous review.** Fix the real bugs and ignore the unrealistic / over-defensive / accessibility findings yourself — don't wait for per-finding approval. The only judgment call left with the user is how to split complex work.
+- **Listen to both `@codex` and `@devin`.** Ignore all other review bots (CodeRabbit, Greptile, etc.).
+- **Never manually trigger or retrigger a review.** Reviews auto-trigger after every push; a push that produces no review means the change was too small to need one. Don't post `@codex review` / `@devin review` or otherwise force a round.
+- Every ignored finding gets both a reply on its thread and an entry in the PR's `## Explicit skips` section, and is reported at the end with the reason.
 - Never force-push, never amend published commits — fixes are always new commits on top.
 - Never open PRs as drafts.
 - No AI attribution in commits or PR bodies.
