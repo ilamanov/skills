@@ -48,10 +48,11 @@ Then split: snapshot the end state, rebuild branch by branch, each branch passin
 
 - **Always ready-for-review, never draft.** Drafts just stall the auto-review. (Watch out for `gt submit --no-interactive` — it defaults to draft, so pass `--publish`.)
 - **Title**: conventional commits (`feat(scope): …`). **Body**: short — what changed and why, enough for a reviewer to orient.
-- **Before/after screenshots for anything user-visible.** They go in the PR body itself, not just the chat — the PR is where reviewers look. Capture the _after_ from the actually-running app; capture the _before_ from the PR's own base branch (its parent in the stack — using `main` for a stacked child would smuggle the parent's changes into the comparison).
-  - If the page sits behind a login, use the user's own browser session (drive their signed-in browser via the browser tools) rather than creating test users or hacking around auth. If that's not available, ask — don't declare it blocked.
-  - If the view renders empty just because there's no data, mock some data for the shot, then revert the mock so it never reaches the diff.
-  - Embed as GitHub attachment URLs (`user-attachments/...`), not files committed to the branch — repo links don't render reliably in PR bodies and throwaway images bloat the diff. After editing, double-check the images actually render.
+- **Before/after screenshots are required for every user-visible change.** They go in the PR body itself, not just the chat — the PR is where reviewers look. This is an outcome requirement, not a restriction on how the images are made: the pair must clearly show the visual state before the PR and after it, but it does not have to come from the actually-running app.
+  - Use whatever credible capture method is available. Options include the running app, the user's signed-in browser session, an existing component preview or fixture, temporarily mocked data, or a faithful custom mock UI made specifically to illustrate the change. When using a mock rather than the real app, keep it faithful to the affected UI and label it as a mock representation so the comparison does not imply runtime verification.
+  - Treat auth walls, missing data, broken local setup, and unavailable browser or upload tooling as reasons to switch methods, not reasons to omit the screenshots. Exhaust the workable alternatives before asking the user for help. Any temporary mock data or capture-only code must be reverted so it never reaches the diff.
+  - Represent the _before_ state from the PR's own base (its parent in the stack) and the _after_ state with the PR applied. Using `main` as the before-state for a stacked child would smuggle the parent's visual changes into the comparison.
+  - Embed the pair as GitHub attachment URLs (`user-attachments/...`), not files committed to the branch. If upload to the body fails, put them in a PR comment and link that comment prominently from the body. Reload the PR and confirm both images actually render.
 
 ## Review loop (automatic — this is the important part)
 
@@ -73,7 +74,7 @@ The loop, per round:
 4. **No manual retrigger.** Pushing the fixes auto-triggers the next review round if the change warrants it. Just schedule the next 10-minute check-in. New findings → back to step 2, same rules. If a push produces no new review, the reviewers judged it too small to re-review — that's a stop signal, not something to override.
 5. Also keep CI green throughout — treat a red check like a finding you can fix without asking (it's not a judgment call, it's broken).
 
-**Done when**: all checks are green and the review has converged (see "when to stop" below) — every finding either fixed or explicitly ignored, and the incremental findings have dwindled to nits/unrealistic edge cases. Then **report** (see the reporting rule in the next section), say the PRs are ready, and stop — the PRs are the deliverable, and merging is the user's call on their own time.
+**Done when**: all checks are green, the review has converged (see "when to stop" below), and every PR with a user-visible change has a rendering-verified before/after pair attached — every finding is either fixed or explicitly ignored, and the incremental findings have dwindled to nits/unrealistic edge cases. Missing screenshots mean the PR is not ready, even if CI and review are green. Then **report** (see the reporting rule in the next section), say the PRs are ready, and stop — the PRs are the deliverable, and merging is the user's call on their own time.
 
 ## What to fix, what to ignore, and when to stop
 
@@ -150,5 +151,5 @@ This is the deliverable of the automatic loop: the user sees exactly what the bo
 - Never force-push, never amend published commits — fixes are always new commits on top.
 - Never open PRs as drafts.
 - No AI attribution in commits or PR bodies.
-- Before/after screenshots in the PR body for anything user-visible.
+- Every user-visible change has rendering-verified before/after screenshots on its PR; use a faithful mock comparison when direct capture is unavailable rather than omitting them.
 - Tear down any scheduled check-ins when the loop finishes or the user bails.
