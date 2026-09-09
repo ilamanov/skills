@@ -31,9 +31,23 @@ Prefer the **Files API** for local footage. Send the **actual video, including a
 
 Use the official Python SDK's client.files.upload(file=path), then poll client.files.get(name=uploaded.name). Wait until the state is ACTIVE. Stop and report the error if it becomes FAILED. Use a bounded processing timeout and a short delay between polls; never poll forever.
 
-Create an interaction using client.interactions.create with a currently available video-capable model. Supply a video input with type="video", uri=uploaded.uri, and mime_type=uploaded.mime_type, followed by a text input containing the user's question. Read the completed interaction's output_text. The official guide documents the current request syntax and model names; do not invent a model or silently change providers.
+Create an interaction using client.interactions.create with a currently available video-capable model. Supply a video input with type="video", uri=uploaded.uri, mime_type=uploaded.mime_type, and a processing mode (see below), followed by a text input containing the user's question. Read the completed interaction's output_text. The official guide documents the current request syntax and model names; do not invent a model or silently change providers.
 
-For a full-video overview, use static video processing where supported. For a user-requested agentic search, use processing="agentic" on a model that supports it. Use streaming or background execution for long jobs, check the final completion status, and report incomplete jobs as incomplete. Claim native agentic processing only when the response contains matching processing_call and processing_result records.
+### Choose a processing mode
+
+The video input carries its own **processing** field. It is set per input, not on the call.
+
+Default to **processing="agentic"** whenever the question targets specific moments ("find where…", "did X ever happen?", "pull the best clips") or the video runs longer than a few minutes. The model navigates the timeline itself, loading transcript, frames, and audio on demand rather than ingesting every frame, so it uses up to **88% fewer tokens** and scores meaningfully higher on long-form content. This mode is limited to the model families that support it, so check the official guide for the current list before choosing one.
+
+Use **processing="static"** for short clips under about five minutes where latency matters, and whenever the answer needs frame-level precision across the *entire* timeline — exhaustive inventories, per-frame counts, or "this never happens" claims. Static extracts frames at a fixed rate, 1 FPS by default, and accepts an object form such as {"type": "static", "fps": 0.5} when a different rate helps.
+
+Claim native agentic processing only when the response contains matching processing_call and processing_result records; without them the model fell back to a single static pass, and the answer covers only what that pass saw.
+
+### Handle long jobs and limits
+
+Use streaming or background execution for long jobs, check the final completion status, and report incomplete jobs as incomplete.
+
+Because agentic mode fetches only the moments it needs, prefer it over splitting a long video when the question is targeted; reach for segmentation only when a limit genuinely blocks the upload.
 
 If the input is unsupported, make a temporary H.264/AAC MP4 copy with ffmpeg. Keep the original intact. If a full video exceeds the current upload or model limits, try a smaller full-length copy first. When segmentation is necessary, cover the entire requested time range with a small overlap, retain each segment's original start time, and combine the findings without counting overlap twice. Tell the user when analysis used separate segments. If they explicitly require one submission, do not split it without resolving that requirement with them.
 
