@@ -17,6 +17,7 @@ The user gives you a vague request. It can be a bug, an infra improvement, or an
 4. **Discuss with the user.** Show what you found, the options, and your recommendation, with evidence. Do not make the change before the user agrees on an approach.
 5. **Ship the change.** Implement the agreed approach in the agreed scope. The check from step 2 must pass on your branch. If the approach does not work, stop and discuss again. The user merges.
 6. **Prove it in production.** Run the same check in production after the deploy. If it fails, go back to step 3.
+7. **Record the bug.** If the request was a bug, add it to the regression bank.
 
 ## Mechanics
 
@@ -27,6 +28,7 @@ Follow these skills in the related steps:
 - `probe` in step 4, if the change needs architecture decisions.
 - `ship` in step 5.
 - `verify-prod` in step 6.
+- `regression-bank` in step 7.
 
 ## Rules
 
