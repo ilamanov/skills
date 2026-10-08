@@ -32,3 +32,4 @@ Use these sections:
 - Do not use real payments. Use the test mode of the payment provider.
 - Do not create test accounts in production, unless the user approves it.
 - Do not save secrets in the guide.
+- Do not update the guide unnecessarily. It's been carefully crafted and just because you used something once, doesn't mean it should be added. Let the human know if you find something but don't update unnecessarily.
